@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PhishShield AI</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">PhishShield AI</p>
+          <h1>Browser threat console.</h1>
+          <p class="lede">Scan the current tab, inspect suspicious links and forms, capture screenshots, import emails, and export results.</p>
+        </div>
+        <div class="status-pill" id="connection-pill">Ready</div>
+      </section>
+
+      <section class="panel settings-panel">
+        <label for="api-base">API base URL</label>
+        <div class="row">
+          <input id="api-base" type="url" spellcheck="false" placeholder="http://127.0.0.1:5000" />
+          <button id="save-settings" class="secondary">Save</button>
+        </div>
+      </section>
+
+      <section class="panel actions-panel">
+        <button id="scan-current-url">Scan current URL</button>
+        <button id="scan-selection" class="secondary">Scan selection</button>
+        <button id="scan-page-text" class="secondary">Scan page text</button>
+        <button id="scan-screenshot" class="secondary">Scan screenshot</button>
+        <button id="run-analysis" class="secondary">Run full analysis</button>
+        <button id="run-bulk" class="secondary">Bulk scan</button>
+      </section>
+
+      <section class="panel input-panel">
+        <label for="analysis-input">URL or email text</label>
+        <textarea id="analysis-input" rows="6" placeholder="Paste a URL, email body, or suspicious message here"></textarea>
+        <div class="row split wrap">
+          <button id="import-email-file">Import email file</button>
+          <button id="export-csv" class="secondary">Export CSV</button>
+          <button id="export-json" class="secondary">Export JSON</button>
+        </div>
+        <input id="email-file-input" type="file" accept=".eml,.txt,.mbox,.json" hidden />
+      </section>
+
+      <section class="panel screenshot-panel">
+        <div class="panel-header">
+          <h2>Screenshot scan</h2>
+          <button id="clear-screenshot" class="ghost">Clear</button>
+        </div>
+        <div class="screenshot-frame empty" id="screenshot-preview-frame">
+          <img id="screenshot-preview" alt="Captured screenshot preview" />
+          <div id="screenshot-placeholder">No screenshot captured yet.</div>
+        </div>
+      </section>
+
+      <section class="panel results-panel">
+        <div class="panel-header">
+          <h2>Result</h2>
+          <button id="clear-result" class="ghost">Clear</button>
+        </div>
+        <div id="result-card" class="result-card empty">No scan yet.</div>
+        <div class="feedback-row">
+          <button id="feedback-false-positive" class="secondary">False positive</button>
+          <button id="feedback-missed-threat" class="secondary">Missed threat</button>
+        </div>
+      </section>
+
+      <section class="panel trend-panel">
+        <div class="panel-header">
+          <h2>Risk trend</h2>
+          <button id="clear-history" class="ghost">Clear history</button>
+        </div>
+        <div id="risk-trend" class="trend-card">No trend data yet.</div>
+      </section>
+
+      <section class="panel history-panel">
+        <div class="panel-header">
+          <h2>Recent scans</h2>
+        </div>
+        <div id="history-list" class="history-list"></div>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

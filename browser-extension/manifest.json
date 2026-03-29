@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "PhishShield AI",
+  "version": "1.0.0",
+  "description": "Scan URLs, selected text, and page content for phishing and scam signals using PhishShield AI.",
+  "action": {
+    "default_title": "PhishShield AI",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": ["storage", "tabs", "activeTab", "scripting", "notifications", "contextMenus", "downloads"],
+  "host_permissions": ["http://127.0.0.1:5000/*", "http://localhost:5000/*"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.svg",
+    "48": "icons/icon48.svg",
+    "128": "icons/icon128.svg"
+  }
+}

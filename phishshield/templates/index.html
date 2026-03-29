@@ -1,0 +1,544 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PhishShield AI — Threat Detection</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml"/>
+  <link rel="stylesheet" href="/static/style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://unpkg.com/aos@2.3.1/dist/aos.css"/>
+</head>
+<body>
+
+<!-- CYBER BACKGROUND -->
+<canvas id="cyber-canvas"></canvas>
+<div class="cyber-grid"></div>
+
+<!-- TOAST AREA -->
+<div id="toast-area" class="toast-area"></div>
+
+<!-- CRITICAL THREAT BANNER -->
+<div id="threat-banner" class="threat-banner hidden">
+  <span class="tb-icon">&#9888;</span>
+  <span class="tb-text">CRITICAL THREAT DETECTED</span>
+  <button class="tb-close" onclick="document.getElementById('threat-banner').classList.add('hidden')">&#10005;</button>
+</div>
+
+<!-- HEADER -->
+<header id="main-header">
+  <div class="header-inner">
+    <div class="header-top">
+      <div class="logo" id="logo">
+        <svg class="logo-svg" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M22 2L4 10v14c0 10.5 7.7 20.3 18 22 10.3-1.7 18-11.5 18-22V10L22 2z" fill="url(#sg)"/>
+          <path d="M15 22l5 5 9-10" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs><linearGradient id="sg" x1="4" y1="2" x2="40" y2="46"><stop stop-color="#06b6d4"/><stop offset="1" stop-color="#818cf8"/></linearGradient></defs>
+        </svg>
+        <div class="logo-text-block">
+          <span class="logo-name">PhishShield <span class="accent">AI</span></span>
+          <span class="logo-sub">Security Operations Platform</span>
+        </div>
+      </div>
+      <div class="header-stats" id="header-stats">
+        <div class="hstat">
+          <span class="hstat-value" id="stat-urls">0</span>
+          <span class="hstat-label">URLs Scanned</span>
+        </div>
+        <div class="hstat-sep"></div>
+        <div class="hstat">
+          <span class="hstat-value" id="stat-emails">0</span>
+          <span class="hstat-label">Emails Analyzed</span>
+        </div>
+        <div class="hstat-sep"></div>
+        <div class="hstat">
+          <span class="hstat-value danger" id="stat-threats">0</span>
+          <span class="hstat-label">Threats Detected</span>
+        </div>
+      </div>
+    </div>
+    <p class="tagline">Real-time phishing &amp; scam detection powered by machine learning</p>
+  </div>
+</header>
+
+<!-- CONTAINER SCROLL HERO -->
+<section class="scroll-hero-section" id="scroll-hero">
+  <div class="scroll-hero-inner">
+
+    <!-- Title (translates up on scroll — mirrors Header component) -->
+    <div class="scroll-title" id="scroll-title">
+      <p class="scroll-eyebrow">Powered by Machine Learning</p>
+      <h1 class="scroll-heading">
+        Stop phishing attacks<br>
+        <span class="scroll-heading-accent">before they reach you</span>
+      </h1>
+      <p class="scroll-sub">Three independent AI models analyse every URL, email and header in real-time — giving you a composite threat score you can trust.</p>
+    </div>
+
+    <!-- 3-D perspective wrapper -->
+    <div class="scroll-perspective">
+      <!-- Card (rotates + scales on scroll — mirrors Card component) -->
+      <div class="scroll-card" id="scroll-card">
+        <div class="scroll-card-inner">
+
+          <!-- mini dashboard inside the card -->
+          <div class="sc-topbar">
+            <span class="sc-dot red"></span><span class="sc-dot yellow"></span><span class="sc-dot green"></span>
+            <span class="sc-url-bar">phishshield.ai — Live Threat Console</span>
+          </div>
+
+          <div class="sc-body">
+            <!-- left stat column -->
+            <div class="sc-stats">
+              <div class="sc-stat-card">
+                <div class="sc-stat-ring safe"></div>
+                <div>
+                  <div class="sc-stat-val safe-txt">98.4%</div>
+                  <div class="sc-stat-lbl">Detection Rate</div>
+                </div>
+              </div>
+              <div class="sc-stat-card">
+                <div class="sc-stat-ring warn"></div>
+                <div>
+                  <div class="sc-stat-val warn-txt">1.2ms</div>
+                  <div class="sc-stat-lbl">Avg Latency</div>
+                </div>
+              </div>
+              <div class="sc-stat-card">
+                <div class="sc-stat-ring danger"></div>
+                <div>
+                  <div class="sc-stat-val danger-txt">3</div>
+                  <div class="sc-stat-lbl">Models Active</div>
+                </div>
+              </div>
+              <div class="sc-model-badges">
+                <span class="sc-badge">URL</span>
+                <span class="sc-badge">NLP</span>
+                <span class="sc-badge">Risk</span>
+              </div>
+            </div>
+
+            <!-- right scan preview -->
+            <div class="sc-preview">
+              <div class="sc-preview-row">
+                <span class="sc-preview-label">Signal</span>
+                <span class="sc-preview-label">Score</span>
+                <span class="sc-preview-label">Status</span>
+              </div>
+              <div class="sc-preview-row sc-row-phish">
+                <span>IP address in URL</span><span>1.0</span><span class="sc-pill red">Phishing</span>
+              </div>
+              <div class="sc-preview-row">
+                <span>HTTPS present</span><span>0.0</span><span class="sc-pill green">Safe</span>
+              </div>
+              <div class="sc-preview-row sc-row-phish">
+                <span>Domain age &lt; 30 days</span><span>0.9</span><span class="sc-pill orange">Suspect</span>
+              </div>
+              <div class="sc-preview-row">
+                <span>Redirect chain</span><span>0.0</span><span class="sc-pill green">Safe</span>
+              </div>
+              <div class="sc-preview-row sc-row-phish">
+                <span>URL entropy</span><span>0.87</span><span class="sc-pill red">Phishing</span>
+              </div>
+              <div class="sc-preview-row">
+                <span>Subdomain depth</span><span>0.2</span><span class="sc-pill green">Safe</span>
+              </div>
+              <div class="sc-verdict">
+                <div class="sc-verdict-ring">
+                  <svg viewBox="0 0 36 36" class="sc-ring-svg">
+                    <circle cx="18" cy="18" r="14" class="sc-ring-bg"/>
+                    <circle cx="18" cy="18" r="14" class="sc-ring-fill" stroke-dasharray="62 88"/>
+                  </svg>
+                  <span class="sc-ring-pct">78%</span>
+                </div>
+                <div>
+                  <div class="sc-verdict-label">PHISHING</div>
+                  <div class="sc-verdict-sub">High confidence threat</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- INTERACTIVE GLOBE -->
+<section class="globe-section" id="globe-section" data-aos="fade-up">
+  <div class="globe-inner">
+
+    <!-- Left content -->
+    <div class="globe-content">
+      <div class="globe-badge">
+        <span class="globe-pulse"></span>
+        Live threat monitoring active
+      </div>
+      <h2 class="globe-heading">
+        Global Threat<br>
+        <span class="globe-heading-accent">Detection Network</span>
+      </h2>
+      <p class="globe-sub">
+        PhishShield AI monitors phishing campaigns across 50+ countries in real-time.
+        Every scan feeds our global intelligence map — drag the globe to explore.
+      </p>
+      <div class="globe-stats">
+        <div class="globe-stat">
+          <span class="globe-stat-val">50+</span>
+          <span class="globe-stat-lbl">Countries Monitored</span>
+        </div>
+        <div class="globe-stat-divider"></div>
+        <div class="globe-stat">
+          <span class="globe-stat-val">&lt;50ms</span>
+          <span class="globe-stat-lbl">Detection Latency</span>
+        </div>
+        <div class="globe-stat-divider"></div>
+        <div class="globe-stat">
+          <span class="globe-stat-val">99.9%</span>
+          <span class="globe-stat-lbl">Model Accuracy</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right — interactive globe canvas -->
+    <div class="globe-canvas-wrap">
+      <canvas id="threat-globe"></canvas>
+    </div>
+
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how-it-works">
+  <div class="hiw-inner">
+    <div class="hiw-step" data-aos="fade-up" data-aos-delay="100">
+      <div class="hiw-icon"></div>
+      <div class="hiw-text"><div class="hiw-title">1. Paste Input</div><div class="hiw-desc">Drop a URL or email body into the scanner</div></div>
+    </div>
+    <div class="hiw-arrow">&#8250;</div>
+    <div class="hiw-step" data-aos="fade-up" data-aos-delay="200">
+      <div class="hiw-icon"></div>
+      <div class="hiw-text"><div class="hiw-title">2. ML Analysis</div><div class="hiw-desc">3 models analyze 17+ structural &amp; semantic signals</div></div>
+    </div>
+    <div class="hiw-arrow">&#8250;</div>
+    <div class="hiw-step" data-aos="fade-up" data-aos-delay="300">
+      <div class="hiw-icon"></div>
+      <div class="hiw-text"><div class="hiw-title">3. Threat Report</div><div class="hiw-desc">Probability ring, risk level &amp; detailed breakdown</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- TABS -->
+<main>
+  <div class="tab-bar" id="tab-bar">
+    <button class="tab-btn active" data-tab="url"> URL Checker</button>
+    <button class="tab-btn" data-tab="email"> Email Analyzer</button>
+    <button class="tab-btn" data-tab="risk"> Risk Score</button>
+    <button class="tab-btn" data-tab="full"> Full Analysis</button>
+    <button class="tab-btn" data-tab="dashboard"> Intelligence Dashboard</button>
+    <button class="tab-btn" data-tab="bulk">⚡ Bulk Scanner</button>
+  </div>
+
+  <div class="tab-panels-wrapper" id="tab-panels-wrapper">
+
+    <!-- URL CHECKER -->
+    <section id="tab-url" class="tab-content scroll-section">
+      <div class="section-label"><span class="section-num">01</span> URL Checker</div>
+      <div class="card glass">
+        <div class="card-header-row">
+          <div>
+            <h2>URL Phishing Checker</h2>
+            <p class="card-desc">Paste any URL to detect phishing using 17 structural features.</p>
+          </div>
+          <span class="shortcut-hint">Enter  to scan</span>
+        </div>
+        <div class="input-group">
+          <div class="input-wrap url-input-wrap">
+            <input type="text" id="url-input" placeholder="https://example.com/login?redirect=..." autocomplete="off"/>
+            <div class="scan-laser" id="url-laser"></div>
+            <button class="clear-btn" onclick="clearInput('url-input','url-result','url-skeleton')" title="Clear">&#10005;</button>
+          </div>
+          <button class="btn-primary ripple-btn" id="url-analyze-btn" onclick="checkURL()">
+            <span class="btn-inner">Analyze URL</span>
+          </button>
+        </div>
+        <div class="quick-tests">
+          <span class="label-sm">Quick test:</span>
+          <button class="chip" onclick="setURL('https://google.com')">google.com</button>
+          <button class="chip" onclick="setURL('http://192.168.1.1/~login/verify-account@paypal.com/update')">Phishing sample</button>
+          <button class="chip" onclick="setURL('http://paypa1.com.evil-domain.xyz/secure/login?user=update&amp;verify=true')">Spoofed domain</button>
+        </div>
+        <div id="url-scan-anim" class="scan-anim hidden">
+          <div class="scan-circle">
+            <div class="scan-ring"></div>
+            <div class="scan-ring scan-ring-2"></div>
+            <div class="scan-dot"></div>
+          </div>
+          <div class="scan-text">
+            <span class="scan-label" id="scan-label-text">AI models analyzing structural signals...</span>
+            <div class="scan-dots"><span></span><span></span><span></span></div>
+          </div>
+        </div>
+        <div id="url-skeleton" class="skeleton-wrap hidden"></div>
+        <div id="url-result" class="result-panel hidden"></div>
+        <div id="url-history" class="scan-history hidden">
+          <div class="sh-title">Recent Scans</div>
+          <div id="url-history-list" class="sh-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EMAIL ANALYZER -->
+    <section id="tab-email" class="tab-content scroll-section">
+      <div class="section-label"><span class="section-num">02</span> Email Analyzer</div>
+      <div class="card glass">
+        <div class="card-header-row">
+          <div>
+            <h2>Email Scam Analyzer</h2>
+            <p class="card-desc">Paste email body text to detect scam / phishing content using NLP + TF-IDF.</p>
+          </div>
+          <span class="shortcut-hint">Ctrl+Enter to scan</span>
+        </div>
+        <div id="email-brain-anim" class="brain-anim hidden">
+          <div id="lottie-brain" class="lottie-container"></div>
+          <div class="brain-label">AI Neural Engine Processing...</div>
+        </div>
+        <div class="input-wrap textarea-wrap" style="margin-bottom:14px;">
+          <textarea id="email-input" rows="7" placeholder="Paste email body text here&#10;&#10;Example: Congratulations! You have been selected as our lucky winner"></textarea>
+          <button class="clear-btn textarea-clear" onclick="clearInput('email-input','email-result','email-skeleton')" title="Clear">&#10005;</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn-primary ripple-btn" onclick="checkEmail()"><span class="btn-inner">Analyze Email</span></button>
+          <button class="btn-ghost" onclick="loadSampleEmail('spam')">Load Spam Sample</button>
+          <button class="btn-ghost" onclick="loadSampleEmail('ham')">Load Ham Sample</button>
+        </div>
+        <div id="email-skeleton" class="skeleton-wrap hidden"></div>
+        <div id="email-result" class="result-panel hidden"></div>
+        <div id="email-history" class="scan-history hidden">
+          <div class="sh-title">Recent Scans</div>
+          <div id="email-history-list" class="sh-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RISK SCORE -->
+    <section id="tab-risk" class="tab-content scroll-section">
+      <div class="section-label"><span class="section-num">03</span> Risk Score</div>
+      <div class="card glass">
+        <h2>Composite Risk Score</h2>
+        <p class="card-desc">This score is computed automatically from the latest URL, email, or full scan. No manual input is required.</p>
+        <div class="risk-auto-strip">
+          <div>
+            <div class="risk-auto-title">Auto-linked risk engine</div>
+            <div class="risk-auto-sub">Latest scans are blended into one composite score and updated live.</div>
+          </div>
+          <button class="btn-ghost" onclick="refreshAutoRisk()">Refresh latest risk</button>
+        </div>
+        <div class="risk-source-grid">
+          <div class="risk-source-card">
+            <span>Latest URL</span>
+            <strong id="risk-src-url">Waiting for scan</strong>
+          </div>
+          <div class="risk-source-card">
+            <span>Latest Email</span>
+            <strong id="risk-src-email">Waiting for scan</strong>
+          </div>
+          <div class="risk-source-card">
+            <span>Latest Composite</span>
+            <strong id="risk-src-full">Waiting for scan</strong>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn-primary ripple-btn" onclick="refreshAutoRisk()"><span class="btn-inner">Compute Auto Risk Score</span></button>
+        </div>
+        <div id="risk-result" class="result-panel hidden"></div>
+      </div>
+    </section>
+
+    <!-- FULL ANALYSIS -->
+    <section id="tab-full" class="tab-content scroll-section">
+      <div class="section-label"><span class="section-num">04</span> Full Analysis</div>
+      <div class="card glass">
+        <h2>Full Threat Analysis</h2>
+        <p class="card-desc">Provide URL + email text and let all three models run together for a complete threat report.</p>
+        <div class="form-group">
+          <label>URL <span class="hint">optional</span></label>
+          <div class="input-wrap">
+            <input type="text" id="fa-url" placeholder="https://suspicious-site.com/login"/>
+            <button class="clear-btn" onclick="clearInput('fa-url',null,null)" title="Clear">&#10005;</button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:14px;">
+          <label>Email Body <span class="hint">optional</span></label>
+          <div class="input-wrap textarea-wrap">
+            <textarea id="fa-email" rows="5" placeholder="Paste email body here"></textarea>
+            <button class="clear-btn textarea-clear" onclick="clearInput('fa-email',null,null)" title="Clear">&#10005;</button>
+          </div>
+        </div>
+        <div class="form-grid two-col" style="margin-top:14px;">
+          <div class="form-group">
+            <label>Domain Age <span class="hint">days</span></label>
+            <input type="number" id="fa-domain-age" min="1" value="30"/>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="fa-attachment"/> Has Attachment</label>
+          </div>
+        </div>
+        <button class="btn-primary ripple-btn full-width" onclick="fullAnalysis()"><span class="btn-inner"> Run Full Analysis</span></button>
+        <div id="pipeline-anim" class="pipeline-anim hidden">
+          <div class="pipe-step" id="pipe-step-1">
+            <div class="pipe-icon"></div>
+            <div class="pipe-label">URL Model</div>
+            <div class="pipe-status" id="pipe-st-1">Scanning...</div>
+          </div>
+          <div class="pipe-connector"><div class="pipe-flow" id="pipe-flow-1"></div></div>
+          <div class="pipe-step" id="pipe-step-2">
+            <div class="pipe-icon"></div>
+            <div class="pipe-label">Email Model</div>
+            <div class="pipe-status" id="pipe-st-2">Waiting...</div>
+          </div>
+          <div class="pipe-connector"><div class="pipe-flow" id="pipe-flow-2"></div></div>
+          <div class="pipe-step" id="pipe-step-3">
+            <div class="pipe-icon"></div>
+            <div class="pipe-label">Risk Engine</div>
+            <div class="pipe-status" id="pipe-st-3">Waiting...</div>
+          </div>
+        </div>
+        <div id="full-result" class="result-panel hidden"></div>
+      </div>
+    </section>
+
+    <!-- INTELLIGENCE DASHBOARD -->
+    <section id="tab-dashboard" class="tab-content scroll-section">
+      <div class="section-label"><span class="section-num">05</span> Intelligence Dashboard</div>
+      <div class="card glass dashboard-panel" id="dashboard-panel">
+        <div class="card-header-row">
+          <div>
+            <h2>Threat Intelligence Console</h2>
+            <p class="card-desc">Monitor recent scans, high-signal indicators, and extension activity from one place.</p>
+          </div>
+          <button class="btn-ghost" onclick="fetchDashboard()">Refresh live data</button>
+        </div>
+
+        <div class="dashboard-kpis">
+          <div class="dash-kpi">
+            <span class="dash-kpi-label">Recent scans</span>
+            <strong id="dash-recent-scans">0</strong>
+          </div>
+          <div class="dash-kpi">
+            <span class="dash-kpi-label">Phishing events</span>
+            <strong id="dash-phish-events">0</strong>
+          </div>
+          <div class="dash-kpi">
+            <span class="dash-kpi-label">Extension alerts</span>
+            <strong id="dash-extension-alerts">0</strong>
+          </div>
+          <div class="dash-kpi">
+            <span class="dash-kpi-label">Feedback items</span>
+            <strong id="dash-extension-feedback">0</strong>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="dashboard-card">
+            <div class="dashboard-card-title">Top signals</div>
+            <div id="dash-signals" class="dashboard-list"></div>
+          </div>
+          <div class="dashboard-card">
+            <div class="dashboard-card-title">Risk distribution</div>
+            <div id="dash-risk" class="dashboard-list"></div>
+          </div>
+          <div class="dashboard-card dashboard-wide">
+            <div class="dashboard-card-title">Recent scans</div>
+            <div id="dash-scans" class="dashboard-feed"></div>
+          </div>
+          <div class="dashboard-card">
+            <div class="dashboard-card-title">Extension alerts</div>
+            <div id="dash-alerts" class="dashboard-list"></div>
+          </div>
+          <div class="dashboard-card">
+            <div class="dashboard-card-title">User feedback</div>
+            <div id="dash-feedback" class="dashboard-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BULK SCANNER -->
+    <section id="tab-bulk" class="tab-content scroll-section">
+      <div class="section-label"><span class="section-num">06</span> Bulk Scanner</div>
+      <div class="card glass">
+        <div class="card-header-row">
+          <div>
+            <h2>Bulk URL Scanner</h2>
+            <p class="card-desc">Paste up to 50 URLs — one per line — for simultaneous AI + rule-engine analysis.</p>
+          </div>
+          <span class="shortcut-hint">Max 50 URLs</span>
+        </div>
+        <div class="input-wrap textarea-wrap">
+          <textarea id="bulk-input" rows="9" placeholder="https://google.com&#10;https://paypal-verify.suspicious.xyz/login&#10;http://192.168.1.1/~admin@paypal.com&#10;https://github.com&#10;http://bit.ly/3xFakeLink&#10;https://amazon.com"></textarea>
+        </div>
+        <div class="btn-row" style="margin-top:12px;">
+          <button class="btn-primary ripple-btn" onclick="bulkScan()"><span class="btn-inner">⚡ Scan All URLs</span></button>
+          <button class="btn-ghost" id="bulk-csv-btn" onclick="exportBulkCSV()" style="display:none;">⬇ Export CSV</button>
+        </div>
+        <div id="bulk-progress" class="bulk-progress hidden">
+          <div class="bp-bar-wrap"><div class="bp-bar" id="bp-bar"></div></div>
+          <span id="bp-label">Scanning...</span>
+        </div>
+        <div id="bulk-result" class="hidden" style="margin-top:16px;"></div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-col">
+      <span class="footer-brand"> PhishShield AI</span>
+      <span class="footer-muted">Security Operations Platform</span>
+    </div>
+  </div>
+</footer>
+
+<div id="loader" class="loader-overlay hidden">
+  <div class="spinner"></div>
+  <p>Analyzing</p>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+<script src="/static/script.js"></script>
+
+<!-- ─── AI Security Assistant ─── -->
+<div id="ai-chat-btn" class="ai-chat-btn" onclick="toggleAIChat()" title="AI Security Assistant">
+  <span class="ai-chat-icon">🛡️</span>
+  <span class="ai-badge" id="ai-badge" style="display:none">!</span>
+</div>
+<div id="ai-chat-panel" class="ai-chat-panel">
+  <div class="ai-chat-header">
+    <div class="ai-chat-title">
+      <span class="ai-dot-pulse"></span>
+      PhishShield AI Assistant
+    </div>
+    <button class="ai-chat-close" onclick="toggleAIChat()">✕</button>
+  </div>
+  <div class="ai-chat-messages" id="ai-chat-messages"></div>
+  <div class="ai-chat-input-row">
+    <input type="text" id="ai-chat-input"
+           placeholder="Ask about phishing or security…"
+           onkeydown="if(event.key==='Enter') sendChat()"
+           maxlength="300" autocomplete="off" />
+    <button class="ai-send-btn" onclick="sendChat()">➤</button>
+  </div>
+</div>
+</body>
+</html>

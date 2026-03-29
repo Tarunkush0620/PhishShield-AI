@@ -1,0 +1,145 @@
+#phishshield-banner {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  z-index: 2147483647;
+  width: min(360px, calc(100vw - 36px));
+  border-radius: 18px;
+  padding: 16px;
+  color: #f8fafc;
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.96), rgba(7, 11, 26, 0.92));
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: 0 24px 80px rgba(2, 6, 23, 0.42);
+  backdrop-filter: blur(18px);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+#phishshield-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), transparent 40%);
+}
+
+#phishshield-banner[data-level="danger"] {
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+#phishshield-banner[data-level="safe"] {
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+.phishshield-banner__content {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.phishshield-banner__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.phishshield-banner__title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+
+.phishshield-banner__meta {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.phishshield-banner__summary {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.phishshield-banner__score {
+  min-width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 800;
+  background: linear-gradient(145deg, rgba(37, 99, 235, 0.24), rgba(15, 23, 42, 0.2));
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.phishshield-banner__signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.phishshield-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.phishshield-banner__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.phishshield-banner__actions button {
+  border: 0;
+  border-radius: 12px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+.phishshield-banner__actions button[data-action="dismiss"] {
+  background: rgba(148, 163, 184, 0.22);
+  color: #e2e8f0;
+}
+
+#phishshield-hover-tip {
+  position: absolute;
+  z-index: 2147483647;
+  max-width: min(260px, calc(100vw - 24px));
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.98);
+  color: #f8fafc;
+  border: 1px solid rgba(248, 113, 113, 0.42);
+  box-shadow: 0 18px 48px rgba(2, 6, 23, 0.42);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.phishshield-form-warning {
+  outline: 2px solid rgba(248, 113, 113, 0.75) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.14) !important;
+}

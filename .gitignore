@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.env
+.venv
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Large model files (>100 MB — excluded from git; reproduced by running training/train_url_model.py)
+training/url_model.pkl
+phishshield/models/url_model.pkl
+phishshield/models/*.pkl
+datasets/emails.csv
+datasets/malicious_phish.csv
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# VS Code
+.vscode/
+
+# Logs / temp
+*.log
+*.tmp
