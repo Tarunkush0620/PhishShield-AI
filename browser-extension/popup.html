@@ -12,7 +12,7 @@
         <div>
           <p class="eyebrow">PhishShield AI</p>
           <h1>Browser threat console.</h1>
-          <p class="lede">Scan the current tab, inspect suspicious links and forms, capture screenshots, import emails, and export results.</p>
+          <p class="lede">Scan the current tab, inspect suspicious links and forms, capture screenshots, paste email text for analysis, and export results.</p>
         </div>
         <div class="status-pill" id="connection-pill">Ready</div>
       </section>
@@ -23,6 +23,20 @@
           <input id="api-base" type="url" spellcheck="false" placeholder="http://127.0.0.1:5000" />
           <button id="save-settings" class="secondary">Save</button>
         </div>
+        <label class="toggle-row">
+          <input id="auto-scan-enabled" type="checkbox" />
+          <span>
+            <strong>Auto-scan pages</strong>
+            <small>Scan tabs automatically when you open or switch to them.</small>
+          </span>
+        </label>
+        <label class="toggle-row">
+          <input id="privacy-mode-enabled" type="checkbox" />
+          <span>
+            <strong>Privacy mode</strong>
+            <small>Redact personal data locally before email analysis.</small>
+          </span>
+        </label>
       </section>
 
       <section class="panel actions-panel">
@@ -38,11 +52,10 @@
         <label for="analysis-input">URL or email text</label>
         <textarea id="analysis-input" rows="6" placeholder="Paste a URL, email body, or suspicious message here"></textarea>
         <div class="row split wrap">
-          <button id="import-email-file">Import email file</button>
+          <button id="scan-email" class="secondary">Scan email</button>
           <button id="export-csv" class="secondary">Export CSV</button>
           <button id="export-json" class="secondary">Export JSON</button>
         </div>
-        <input id="email-file-input" type="file" accept=".eml,.txt,.mbox,.json" hidden />
       </section>
 
       <section class="panel screenshot-panel">
@@ -65,6 +78,23 @@
         <div class="feedback-row">
           <button id="feedback-false-positive" class="secondary">False positive</button>
           <button id="feedback-missed-threat" class="secondary">Missed threat</button>
+        </div>
+      </section>
+
+      <section class="panel chat-panel">
+        <div class="panel-header">
+          <h2>PhishShield Chat</h2>
+          <button id="clear-chat" class="ghost">Clear</button>
+        </div>
+        <div id="chat-log" class="chat-log" aria-live="polite"></div>
+        <div class="chat-presets">
+          <button type="button" class="secondary" data-chat-prompt="Why was this flagged?">Why flagged?</button>
+          <button type="button" class="secondary" data-chat-prompt="What should I do next?">Next steps</button>
+          <button type="button" class="secondary" data-chat-prompt="Is this email safe to click?">Is it safe?</button>
+        </div>
+        <div class="chat-row">
+          <input id="chat-input" type="text" placeholder="Ask about the current scan or phishing safety" />
+          <button id="send-chat">Ask</button>
         </div>
       </section>
 

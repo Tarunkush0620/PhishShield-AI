@@ -1,4 +1,6 @@
 const apiBaseInput = document.getElementById("api-base");
+const autoScanEnabledInput = document.getElementById("auto-scan-enabled");
+const privacyModeEnabledInput = document.getElementById("privacy-mode-enabled");
 const saveSettingsButton = document.getElementById("save-settings");
 const connectionPill = document.getElementById("connection-pill");
 const scanCurrentUrlButton = document.getElementById("scan-current-url");
@@ -6,18 +8,21 @@ const scanSelectionButton = document.getElementById("scan-selection");
 const scanPageTextButton = document.getElementById("scan-page-text");
 const scanScreenshotButton = document.getElementById("scan-screenshot");
 const analysisInput = document.getElementById("analysis-input");
+const scanEmailButton = document.getElementById("scan-email");
 const runAnalysisButton = document.getElementById("run-analysis");
 const runBulkButton = document.getElementById("run-bulk");
-const importEmailButton = document.getElementById("import-email-file");
-const emailFileInput = document.getElementById("email-file-input");
 const exportCsvButton = document.getElementById("export-csv");
 const exportJsonButton = document.getElementById("export-json");
+const clearChatButton = document.getElementById("clear-chat");
 const clearResultButton = document.getElementById("clear-result");
 const clearHistoryButton = document.getElementById("clear-history");
 const clearScreenshotButton = document.getElementById("clear-screenshot");
 const feedbackFalsePositiveButton = document.getElementById("feedback-false-positive");
 const feedbackMissedThreatButton = document.getElementById("feedback-missed-threat");
 const resultCard = document.getElementById("result-card");
+const chatLog = document.getElementById("chat-log");
+const chatInput = document.getElementById("chat-input");
+const sendChatButton = document.getElementById("send-chat");
 const historyList = document.getElementById("history-list");
 const trendCard = document.getElementById("risk-trend");
 const screenshotPreviewFrame = document.getElementById("screenshot-preview-frame");
@@ -31,6 +36,7 @@ const DEFAULT_API_BASE = "http://127.0.0.1:5000";
 let currentResult = null;
 let currentScreenshot = "";
 let historyState = [];
+let chatState = [];
 
 function sendMessage(message) {
   return new Promise((resolve, reject) => {
@@ -89,6 +95,69 @@ async function postJson(path, body) {
     throw new Error(payload?.error || `Request failed with status ${response.status}`);
   }
   return payload;
+}
+
+function escapeHtml(text) {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function renderChat() {
+  if (!chatLog) return;
+
+  if (!chatState.length) {
+    chatLog.innerHTML = '<div class="chat-empty">Ask about the current scan, phishing risks, or what to do next.</div>';
+    return;
+  }
+
+  chatLog.innerHTML = chatState.map((entry) => `
+    <div class="chat-bubble chat-bubble--${entry.role}">
+      <div class="chat-bubble__role">${entry.role === "assistant" ? "PhishShield" : "You"}</div>
+      <div class="chat-bubble__text">${escapeHtml(entry.text)}</div>
+    </div>
+  `).join("");
+
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function appendChat(role, text) {
+  chatState.push({ role, text });
+  renderChat();
+}
+
+function buildChatContext() {
+  if (!currentResult) return null;
+  return {
+    label: currentResult.label || currentResult.level || currentResult.scan_type || "unknown",
+    score: resultScore(currentResult),
+    url: currentResult.url || "",
+    privacy_note: currentResult.privacy_note || "",
+    threat_signals: signalList(currentResult).slice(0, 8),
+    page_context: currentResult.page_context?.summary || "",
+    risk_level: currentResult.level || "",
+    confidence: currentResult.confidence || "",
+    scan_type: currentResult.scan_type || "",
+  };
+}
+
+async function askChat(question) {
+  const text = String(question || chatInput?.value || "").trim();
+  if (!text) throw new Error("Type a question first");
+
+  appendChat("user", text);
+  if (chatInput) chatInput.value = "";
+
+  const context = buildChatContext();
+  const prompt = context
+    ? `Answer using the current scan context only when relevant. Context: ${JSON.stringify(context)}. Question: ${text}`
+    : text;
+
+  const result = await postJson("/api/chat", { question: prompt });
+  appendChat("assistant", result.response || "I could not generate an answer.");
 }
 
 async function getHistoryLocal() {
@@ -262,13 +331,24 @@ async function directClearHistory() {
   return { ok: true };
 }
 
-async function directSaveSettings(apiBase) {
-  await chrome.storage.sync.set({ [SETTINGS_KEY]: { apiBase: String(apiBase || DEFAULT_API_BASE).trim() } });
+async function directSaveSettings(apiBase, autoScanEnabled = true, privacyModeEnabled = true) {
+  await chrome.storage.sync.set({
+    [SETTINGS_KEY]: {
+      apiBase: String(apiBase || DEFAULT_API_BASE).trim(),
+      autoScanEnabled: autoScanEnabled !== false,
+      privacyModeEnabled: privacyModeEnabled !== false,
+    },
+  });
   return { ok: true };
 }
 
 async function directGetSettings() {
-  return { apiBase: await getApiBase() };
+  const settings = await getStoredSettings();
+  return {
+    apiBase: settings.apiBase || await getApiBase(),
+    autoScanEnabled: settings.autoScanEnabled !== false,
+    privacyModeEnabled: settings.privacyModeEnabled !== false,
+  };
 }
 
 async function directSendFeedback(payload) {
@@ -280,7 +360,7 @@ async function directSendFeedback(payload) {
 async function fallbackMessage(message) {
   switch (message?.type) {
     case "GET_SETTINGS": return await directGetSettings();
-    case "SAVE_SETTINGS": return await directSaveSettings(message.apiBase);
+    case "SAVE_SETTINGS": return await directSaveSettings(message.apiBase, message.autoScanEnabled, message.privacyModeEnabled);
     case "SCAN_URL": return await directScanUrl(message.url);
     case "SCAN_EMAIL": return await directScanEmail(message.text);
     case "FULL_ANALYSIS": return await directFullAnalysis(message.payload || {});
@@ -312,8 +392,10 @@ function fmtPercent(value) {
 function resultScore(result) {
   if (!result) return null;
   if (typeof result.score === "number") return result.score;
+  if (typeof result.threat_score_pct === "number") return result.threat_score_pct;
+  if (typeof result.threat_score === "number") return Math.round(result.threat_score * 100);
   if (typeof result.confidence_score === "number") {
-    return Math.round(result.confidence_score * 100);
+    return Math.round((1 - result.confidence_score) * 100);
   }
   return null;
 }
@@ -370,13 +452,14 @@ function renderResult(result) {
   const score = resultScore(result);
   const tone = /Phishing|Spam|High|Critical/i.test(label) ? "#fb7185" : "#22c55e";
   const chips = signalList(result);
+  const confidenceText = result.confidence || result.level || "n/a";
 
   resultCard.className = "result-card";
   resultCard.innerHTML = `
     <div class="result-title">
       <div>
         <div style="color:${tone}; font-weight:800; font-size:18px;">${label}</div>
-        <div class="history-item__meta">Confidence ${result.confidence || result.level || "n/a"}</div>
+        <div class="history-item__meta">Confidence ${confidenceText}</div>
       </div>
       <div class="score-badge">${score === null ? "n/a" : fmtPercent(score / 100)}</div>
     </div>
@@ -517,6 +600,15 @@ async function runFullAnalysis() {
   await refreshHistory();
 }
 
+async function runEmailScan() {
+  const text = analysisInput.value.trim();
+  if (!text) throw new Error("Paste email text first");
+  const result = await sendMessage({ type: "SCAN_EMAIL", text });
+  renderResult(result);
+  setConnectionStatus("Email scan complete", "success");
+  await refreshHistory();
+}
+
 async function runBulk() {
   const lines = analysisInput.value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   if (!lines.length) throw new Error("Paste one URL per line for bulk scanning");
@@ -528,21 +620,6 @@ async function runBulk() {
     scan_type: "bulk",
   });
   setConnectionStatus("Bulk scan complete", "success");
-  await refreshHistory();
-}
-
-async function readEmailFile(file) {
-  return await file.text();
-}
-
-async function importEmailFile() {
-  const [file] = emailFileInput.files || [];
-  if (!file) throw new Error("Choose an .eml or .txt file first");
-  const text = await readEmailFile(file);
-  analysisInput.value = text;
-  const result = await sendMessage({ type: "SCAN_EMAIL", text });
-  renderResult(result);
-  setConnectionStatus(`Imported ${file.name}`, "success");
   await refreshHistory();
 }
 
@@ -605,18 +682,28 @@ async function init() {
   try {
     const settings = await sendMessage({ type: "GET_SETTINGS" });
     apiBaseInput.value = settings.apiBase || "http://127.0.0.1:5000";
+    autoScanEnabledInput.checked = settings.autoScanEnabled !== false;
+    privacyModeEnabledInput.checked = settings.privacyModeEnabled !== false;
     setConnectionStatus("Ready", "success");
   } catch (error) {
     apiBaseInput.value = "http://127.0.0.1:5000";
+    autoScanEnabledInput.checked = true;
+    privacyModeEnabledInput.checked = true;
     setConnectionStatus(error.message || "API unavailable", "error");
   }
 
   await refreshHistory();
+  renderChat();
 }
 
 saveSettingsButton.addEventListener("click", async () => {
   try {
-    await sendMessage({ type: "SAVE_SETTINGS", apiBase: apiBaseInput.value.trim() });
+    await sendMessage({
+      type: "SAVE_SETTINGS",
+      apiBase: apiBaseInput.value.trim(),
+      autoScanEnabled: autoScanEnabledInput.checked,
+      privacyModeEnabled: privacyModeEnabledInput.checked,
+    });
     setConnectionStatus("Saved", "success");
   } catch (error) {
     setConnectionStatus(error.message || "Save failed", "error");
@@ -643,13 +730,12 @@ runAnalysisButton.addEventListener("click", async () => {
   try { await runFullAnalysis(); } catch (error) { setConnectionStatus(error.message, "error"); }
 });
 
-runBulkButton.addEventListener("click", async () => {
-  try { await runBulk(); } catch (error) { setConnectionStatus(error.message, "error"); }
+scanEmailButton.addEventListener("click", async () => {
+  try { await runEmailScan(); } catch (error) { setConnectionStatus(error.message, "error"); }
 });
 
-importEmailButton.addEventListener("click", () => emailFileInput.click());
-emailFileInput.addEventListener("change", async () => {
-  try { await importEmailFile(); } catch (error) { setConnectionStatus(error.message, "error"); }
+runBulkButton.addEventListener("click", async () => {
+  try { await runBulk(); } catch (error) { setConnectionStatus(error.message, "error"); }
 });
 
 exportCsvButton.addEventListener("click", () => exportHistory("csv"));
@@ -658,6 +744,11 @@ exportJsonButton.addEventListener("click", () => exportHistory("json"));
 clearResultButton.addEventListener("click", () => {
   currentResult = null;
   renderResult(null);
+});
+
+clearChatButton.addEventListener("click", () => {
+  chatState = [];
+  renderChat();
 });
 
 clearScreenshotButton.addEventListener("click", () => renderScreenshot(""));
@@ -675,6 +766,22 @@ feedbackFalsePositiveButton.addEventListener("click", async () => {
 
 feedbackMissedThreatButton.addEventListener("click", async () => {
   try { await saveFeedback("missed-threat"); } catch (error) { setConnectionStatus(error.message, "error"); }
+});
+
+sendChatButton.addEventListener("click", async () => {
+  try { await askChat(); } catch (error) { setConnectionStatus(error.message, "error"); }
+});
+
+chatInput?.addEventListener("keydown", async (event) => {
+  if (event.key !== "Enter") return;
+  event.preventDefault();
+  try { await askChat(); } catch (error) { setConnectionStatus(error.message, "error"); }
+});
+
+document.querySelectorAll("[data-chat-prompt]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    try { await askChat(button.getAttribute("data-chat-prompt")); } catch (error) { setConnectionStatus(error.message, "error"); }
+  });
 });
 
 init();

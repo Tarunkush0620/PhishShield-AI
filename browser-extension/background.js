@@ -3,12 +3,69 @@ const HISTORY_KEY = "phishshield_history";
 const SETTINGS_KEY = "phishshield_settings";
 const HISTORY_LIMIT = 25;
 const ALERT_SCORE_THRESHOLD = 0.65;
+const AUTO_SCAN_TRIGGER_DELAY_MS = 1200;
+
+function isHttpPage(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function autoScanMessage(tabId, url, reason = "navigation") {
+  return chrome.tabs.sendMessage(tabId, {
+    type: "AUTO_SCAN_PAGE",
+    url,
+    reason,
+    delayMs: AUTO_SCAN_TRIGGER_DELAY_MS,
+  });
+}
 
 async function getSettings() {
   const data = await chrome.storage.sync.get(SETTINGS_KEY);
   return {
     apiBase: data[SETTINGS_KEY]?.apiBase || DEFAULT_API_BASE,
+    autoScanEnabled: data[SETTINGS_KEY]?.autoScanEnabled !== false,
+    privacyModeEnabled: data[SETTINGS_KEY]?.privacyModeEnabled !== false,
   };
+}
+
+function sanitizeEmailText(text) {
+  const value = String(text || "");
+  return value
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[REDACTED_EMAIL]")
+    .replace(/\b(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?){2,4}\d{2,4}\b/g, "[REDACTED_PHONE]")
+    .replace(/\b(?:\d[ -]*?){13,19}\b/g, "[REDACTED_NUMBER]")
+    .replace(/\b(?:\d{3}-\d{2}-\d{4}|\d{6,8})\b/g, "[REDACTED_CODE]");
+}
+
+async function shouldAutoScan(tab) {
+  if (!tab?.id || !tab.url || !isHttpPage(tab.url)) return false;
+  const { autoScanEnabled } = await getSettings();
+  return autoScanEnabled;
+}
+
+async function triggerAutoScan(tab, reason) {
+  if (!(await shouldAutoScan(tab))) return;
+
+  try {
+    await autoScanMessage(tab.id, tab.url, reason);
+  } catch (error) {
+    const message = String(error?.message || error || "");
+    if (message.includes("Receiving end does not exist") || message.includes("Could not establish connection")) {
+      try {
+        const result = await scanUrl(tab.url);
+        await notify(
+          `PhishShield AI: ${result.label || "Scan complete"}`,
+          result.threat_signals?.length ? result.threat_signals.slice(0, 2).join("; ") : "Auto-scan completed"
+        );
+      } catch {
+        return;
+      }
+    }
+  }
 }
 
 async function fetchJson(path, body) {
@@ -268,8 +325,10 @@ async function scanUrl(url) {
 }
 
 async function scanEmail(text) {
-  const result = await fetchJson("/api/check-email", { text });
-  await pushHistory({ kind: "email", input: text.slice(0, 240), result });
+  const { privacyModeEnabled } = await getSettings();
+  const sanitized = privacyModeEnabled ? sanitizeEmailText(text) : String(text || "");
+  const result = await fetchJson("/api/check-email", { text: sanitized });
+  await pushHistory({ kind: "email", input: sanitized.slice(0, 240), result });
   if ((result.confidence_score || 0) >= ALERT_SCORE_THRESHOLD || result.label === "Spam/Scam") {
     await syncAlert({
       source: "email-scan",
@@ -280,7 +339,13 @@ async function scanEmail(text) {
       summary: `Email scan flagged as ${result.label}`,
     });
   }
-  return result;
+  return {
+    ...result,
+    privacy_mode: privacyModeEnabled,
+    privacy_note: privacyModeEnabled
+      ? "Personal identifiers were redacted locally before analysis."
+      : "Privacy mode is off; the full email text was analyzed.",
+  };
 }
 
 async function runFullAnalysis(payload) {
@@ -369,6 +434,29 @@ chrome.runtime.onInstalled.addListener(() => {
   });
 });
 
+chrome.runtime.onStartup.addListener(async () => {
+  const tabs = await chrome.tabs.query({});
+  for (const tab of tabs) {
+    if (!tab?.active) continue;
+    await triggerAutoScan(tab, "startup");
+    break;
+  }
+});
+
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  if (changeInfo.status !== "complete") return;
+  await triggerAutoScan(tab, "tab-update");
+});
+
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    await triggerAutoScan(tab, "tab-activated");
+  } catch {
+    return;
+  }
+});
+
 chrome.contextMenus.onClicked.addListener(async (info) => {
   if (info.menuItemId !== "phishshield-scan-selection") return;
   const selected = String(info.selectionText || "").trim();
@@ -392,7 +480,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const handlers = {
     GET_SETTINGS: async () => getSettings(),
     SAVE_SETTINGS: async () => {
-      await chrome.storage.sync.set({ [SETTINGS_KEY]: { apiBase: String(message.apiBase || DEFAULT_API_BASE).trim() } });
+      await chrome.storage.sync.set({
+        [SETTINGS_KEY]: {
+          apiBase: String(message.apiBase || DEFAULT_API_BASE).trim(),
+          autoScanEnabled: message.autoScanEnabled !== false,
+          privacyModeEnabled: message.privacyModeEnabled !== false,
+        },
+      });
       return { ok: true };
     },
     SCAN_URL: async () => scanUrl(message.url),

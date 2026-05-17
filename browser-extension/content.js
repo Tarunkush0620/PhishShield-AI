@@ -9,6 +9,82 @@ let bannerElement = null;
 let hoverElement = null;
 let pageScanTimer = null;
 let pageContextCache = null;
+let lastScanUrl = "";
+let lastScanAt = 0;
+let autoScanTimer = null;
+let lastScanSignature = "";
+
+function isHttpPage(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+function isGmailPage(url = location.href) {
+  try {
+    return new URL(url).hostname === "mail.google.com";
+  } catch {
+    return false;
+  }
+}
+
+function normalizeText(text) {
+  return String(text || "").replace(/\s+/g, " ").trim();
+}
+
+function firstText(root, selectors) {
+  for (const selector of selectors) {
+    const element = root.querySelector(selector);
+    const text = normalizeText(element?.innerText || element?.textContent || "");
+    if (text) return text;
+  }
+  return "";
+}
+
+function collectGmailMessageContext() {
+  if (!isGmailPage()) return null;
+
+  const root = document.querySelector('div[role="main"]') || document.body;
+  if (!root) return null;
+
+  const subject = firstText(root, [
+    'h2.hP',
+    'h2.bog',
+    '[role="heading"][aria-level="2"]',
+    'h2',
+  ]);
+
+  const sender = firstText(root, [
+    'span.gD',
+    'span[email]',
+    '.go',
+    '.afK',
+  ]);
+
+  const bodyNodes = Array.from(root.querySelectorAll('.a3s.aiL, .ii.gt, .a3s'));
+  const body = bodyNodes
+    .map((node) => normalizeText(node.innerText || node.textContent || ""))
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
+
+  if (!body) return null;
+
+  return {
+    url: location.href,
+    title: document.title || "",
+    subject,
+    sender,
+    body: body.slice(0, 12000),
+    summary: [
+      subject ? `Subject: ${subject}` : null,
+      sender ? `From: ${sender}` : null,
+    ].filter(Boolean).join(" · "),
+  };
+}
 
 function sendMessage(message) {
   return new Promise((resolve, reject) => {
@@ -223,6 +299,9 @@ function watchDomMutations() {
   const observer = new MutationObserver(() => {
     markSuspiciousForms();
     pageContextCache = null;
+    if (isGmailPage() && collectGmailMessageContext()) {
+      scheduleAutoScan(1500);
+    }
   });
   observer.observe(document.documentElement, { childList: true, subtree: true });
 }
@@ -235,6 +314,14 @@ function removeBanner() {
 function createBanner(result, pageContext = null) {
   removeBanner();
 
+  const threatPct = typeof result.threat_score_pct === "number"
+    ? result.threat_score_pct
+    : typeof result.threat_score === "number"
+      ? Math.round(result.threat_score * 100)
+      : typeof result.confidence_score === "number"
+        ? Math.max(0, Math.round((1 - result.confidence_score) * 100))
+        : null;
+
   const banner = document.createElement("div");
   banner.id = BANNER_ID;
   banner.dataset.level = result.label === "Phishing" ? "danger" : "safe";
@@ -245,7 +332,7 @@ function createBanner(result, pageContext = null) {
         <div class="phishshield-banner__title">${result.label || "Scan complete"}</div>
         <div class="phishshield-banner__meta">Confidence ${result.confidence || "n/a"}</div>
       </div>
-      <div class="phishshield-banner__score">${Math.round((result.confidence_score || 0) * 100)}%</div>
+      <div class="phishshield-banner__score">${threatPct === null ? "n/a" : `${threatPct}%`}</div>
     </div>
     ${pageContext?.summary ? `<div class="phishshield-banner__summary">${pageContext.summary}</div>` : ""}
     <div class="phishshield-banner__signals"></div>
@@ -302,8 +389,14 @@ function createBanner(result, pageContext = null) {
 
 async function scanCurrentPage(force = false) {
   const current = location.href;
-  if (!force && current === lastUrl) return;
+  const now = Date.now();
+  if (!isHttpPage(current)) {
+    removeBanner();
+    return;
+  }
+  if (!force && current === lastUrl && now - lastScanAt < 15000) return;
   lastUrl = current;
+  lastScanAt = now;
 
   try {
     const pageContext = collectPageContext();
@@ -312,29 +405,69 @@ async function scanCurrentPage(force = false) {
     if (hidden) return;
 
     const result = await postJson("/api/check-url", { url: current });
-    if (result?.label === "Phishing" || (result?.confidence_score || 0) >= 0.65) {
-      createBanner(result, pageContext);
-    } else {
-      removeBanner();
-    }
+    createBanner(result, pageContext);
     markSuspiciousForms();
   } catch {
     removeBanner();
   }
 }
 
-function scheduleScan() {
+async function scanGmailMessage(force = false) {
+  const message = collectGmailMessageContext();
+  if (!message) {
+    removeBanner();
+    return;
+  }
+
+  const signature = `${message.subject}|${message.sender}|${message.body.slice(0, 1000)}`;
+  const now = Date.now();
+  if (!force && signature === lastScanSignature && now - lastScanAt < 20000) return;
+
+  lastScanSignature = signature;
+  lastScanAt = now;
+
+  try {
+    const emailText = [
+      message.subject ? `Subject: ${message.subject}` : "",
+      message.sender ? `From: ${message.sender}` : "",
+      message.body,
+    ].filter(Boolean).join("\n\n");
+
+    const result = await sendMessage({ type: "SCAN_EMAIL", text: emailText.slice(0, 15000) });
+    createBanner(result, {
+      url: message.url,
+      title: message.title,
+      summary: [message.summary || "Gmail message scanned", result?.privacy_note || ""].filter(Boolean).join(" · "),
+    });
+  } catch {
+    removeBanner();
+  }
+}
+
+async function scanActiveContext(force = false) {
+  if (isGmailPage()) {
+    return await scanGmailMessage(force);
+  }
+  return await scanCurrentPage(force);
+}
+
+function scheduleScan(delayMs = 1200) {
+  const waitMs = Number.isFinite(Number(delayMs)) ? Math.max(0, Number(delayMs)) : 1200;
   clearTimeout(pageScanTimer);
-  pageScanTimer = setTimeout(() => scanCurrentPage(), 1200);
+  pageScanTimer = setTimeout(() => scanActiveContext(true), waitMs);
+}
+
+function scheduleAutoScan(delayMs = 1200) {
+  const waitMs = Number.isFinite(Number(delayMs)) ? Math.max(0, Number(delayMs)) : 1200;
+  clearTimeout(autoScanTimer);
+  autoScanTimer = setTimeout(() => scanActiveContext(true), waitMs);
 }
 
 window.addEventListener("DOMContentLoaded", scheduleScan, { once: true });
 window.addEventListener("load", scheduleScan, { once: true });
+window.addEventListener("pageshow", scheduleScan, { once: true });
 window.addEventListener("popstate", scheduleScan);
 window.addEventListener("hashchange", scheduleScan);
-setInterval(() => {
-  if (location.href !== lastUrl) scheduleScan();
-}, 2000);
 
 installLinkPreview();
 markSuspiciousForms();
@@ -366,7 +499,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message?.type === "AUTO_SCAN_PAGE") {
+    const requestedUrl = String(message.url || location.href || "");
+    if (!isHttpPage(requestedUrl) || requestedUrl !== location.href) {
+      sendResponse({ ok: true, result: { skipped: true } });
+      return false;
+    }
+
+    const delayMs = Number(message.delayMs || 1200);
+    scheduleAutoScan(Number.isFinite(delayMs) ? Math.max(250, delayMs) : 1200);
+    sendResponse({ ok: true, result: { scheduled: true } });
+    return true;
+  }
+
   return false;
 });
 
-scanCurrentPage();
+scheduleAutoScan();

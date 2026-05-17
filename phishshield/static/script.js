@@ -518,19 +518,10 @@ function _setRiskSourceLabel(id, value) {
 
 function refreshRiskSources(data) {
   const url = data?.sources?.url;
-  const email = data?.sources?.email;
-  _setRiskSourceLabel(
-    "risk-src-url",
-    url ? `${(url.label || "URL").toUpperCase()} · ${Number(url.score || 0).toFixed(1)}` : _lastURLData ? `${_lastURLData.label} · ${Number((_lastURLData.confidence_score || 0) * 100).toFixed(1)}` : "Waiting for scan"
-  );
-  _setRiskSourceLabel(
-    "risk-src-email",
-    email ? `${email.label || "Email"} · ${Number(email.score || 0).toFixed(1)}` : _lastEmailData ? `${_lastEmailData.label} · ${Number((_lastEmailData.confidence_score || 0) * 100).toFixed(1)}` : "Waiting for scan"
-  );
-  _setRiskSourceLabel(
-    "risk-src-full",
-    data ? `${data.level || "Unknown"} · ${Number(data.score || 0).toFixed(1)}` : _lastRiskData ? `${_lastRiskData.level || "Unknown"} · ${Number(_lastRiskData.score || 0).toFixed(1)}` : "Waiting for scan"
-  );
+    const email = data?.sources?.email;
+    _setRiskSourceLabel("risk-src-url", url ? `${(url.label || "URL").toUpperCase()} · ${Number(url.score || 0).toFixed(1)}` : _lastURLData ? `${_lastURLData.label} · ${Number((_lastURLData.threat_score_pct ?? ((_lastURLData.threat_score !== undefined ? _lastURLData.threat_score * 100 : (typeof _lastURLData.confidence_score === "number" ? (1 - _lastURLData.confidence_score) * 100 : 0))))).toFixed(1)}` : "Waiting for scan");
+    _setRiskSourceLabel("risk-src-email", email ? `${email.label || "Email"} · ${Number(email.score || 0).toFixed(1)}` : _lastEmailData ? `${_lastEmailData.label} · ${Number((_lastEmailData.threat_score_pct ?? ((_lastEmailData.threat_score !== undefined ? _lastEmailData.threat_score * 100 : (typeof _lastEmailData.confidence_score === "number" ? (1 - _lastEmailData.confidence_score) * 100 : 0))))).toFixed(1)}` : "Waiting for scan");
+    _setRiskSourceLabel("risk-src-full", data ? `${data.level || "Unknown"} · ${Number(data.score || 0).toFixed(1)}` : _lastRiskData ? `${_lastRiskData.level || "Unknown"} · ${Number(_lastRiskData.score || 0).toFixed(1)}` : "Waiting for scan");
 }
 
 function levelColor(level) {
@@ -711,21 +702,21 @@ function timeNow() {
 
 function renderURLHistory() {
   const hist = loadHist(HISTORY_URL);
-  const list = document.getElementById("url-history-list");
-  const wrap = document.getElementById("url-history");
-  if (!list || !hist.length) { if (wrap) wrap.classList.add("hidden"); return; }
-  wrap.classList.remove("hidden");
-  list.innerHTML = hist.map(h => {
-    const conf    = h.conf || "50%";
-    const tierCls = h.score !== undefined ? scoreTierCls(h.score) : "low";
-    const verdict = h.verdict || "Unknown";
-    return `<div class="sh-item">
-      <span class="conf-badge conf-${tierCls}">${conf}</span>
-      <span class="sh-text">${escHtml(h.text)}</span>
-      <span class="sh-verdict">${escHtml(verdict)}</span>
-      <span class="sh-time">${h.time}</span>
-    </div>`;
-  }).join("");
+    const list = document.getElementById("url-history-list");
+    const wrap = document.getElementById("url-history");
+    if (!list || !hist.length) { if (wrap) wrap.classList.add("hidden"); return; }
+    wrap.classList.remove("hidden");
+    list.innerHTML = hist.map(h => {
+      const conf = h.conf || "50%";
+      const tierCls = h.score !== undefined ? scoreTierCls(h.score) : "low";
+      const verdict = h.verdict || "Unknown";
+      return `<div class="sh-item">
+        <span class="conf-badge conf-${tierCls}">${conf}</span>
+        <span class="sh-text">${escHtml(h.text)}</span>
+        <span class="sh-verdict">${escHtml(verdict)}</span>
+        <span class="sh-time">${h.time}</span>
+      </div>`;
+    }).join("");
 }
 
 function renderEmailHistory() {
@@ -1245,22 +1236,11 @@ function _setRiskSourceLabel(id, value) {
 function refreshRiskSources(data) {
   const url = data?.sources?.url;
   const email = data?.sources?.email;
-  _setRiskSourceLabel(
-    "risk-src-url",
-    url ? `${(url.label || "URL").toUpperCase()} · ${Number(url.score || 0).toFixed(1)}` : _lastURLData ? `${_lastURLData.label} · ${Number((_lastURLData.confidence_score || 0) * 100).toFixed(1)}` : "Waiting for scan"
-  );
-  _setRiskSourceLabel(
-    "risk-src-email",
-    email ? `${email.label || "Email"} · ${Number(email.score || 0).toFixed(1)}` : _lastEmailData ? `${_lastEmailData.label} · ${Number((_lastEmailData.confidence_score || 0) * 100).toFixed(1)}` : "Waiting for scan"
-  );
-  _setRiskSourceLabel(
-    "risk-src-full",
-    data ? `${data.level || "Unknown"} · ${Number(data.score || 0).toFixed(1)}` : _lastRiskData ? `${_lastRiskData.level || "Unknown"} · ${Number(_lastRiskData.score || 0).toFixed(1)}` : "Waiting for scan"
-  );
+  _setRiskSourceLabel("risk-src-url", url ? `${(url.label || "URL").toUpperCase()} · ${Number(url.score || 0).toFixed(1)}` : _lastURLData ? `${_lastURLData.label} · ${Number((_lastURLData.threat_score_pct ?? ((_lastURLData.threat_score !== undefined ? _lastURLData.threat_score * 100 : (typeof _lastURLData.confidence_score === "number" ? (1 - _lastURLData.confidence_score) * 100 : 0))))).toFixed(1)}` : "Waiting for scan");
+  _setRiskSourceLabel("risk-src-email", email ? `${email.label || "Email"} · ${Number(email.score || 0).toFixed(1)}` : _lastEmailData ? `${_lastEmailData.label} · ${Number((_lastEmailData.threat_score_pct ?? ((_lastEmailData.threat_score !== undefined ? _lastEmailData.threat_score * 100 : (typeof _lastEmailData.confidence_score === "number" ? (1 - _lastEmailData.confidence_score) * 100 : 0))))).toFixed(1)}` : "Waiting for scan");
 }
 
 async function refreshAutoRisk() {
-  const out = document.getElementById("risk-result");
   if (!out) return;
 
   showLoader();
