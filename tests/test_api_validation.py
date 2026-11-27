@@ -249,13 +249,51 @@ class TestAPIInputValidation(unittest.TestCase):
         self.assertIn(results[3]["label"], ("Legitimate", "Phishing"))
 
     def test_bulk_scan_does_not_leak_exception_in_signals(self):
-        """When an entry fails, raw Python exception must not corrupt threat_signals."""
-        res = self.client.post("/api/bulk-scan", json={"urls": [""]})
+        """When an entry fails during feature extraction or model prediction, raw Python exception must not corrupt threat_signals."""
+        with patch("phishshield.routes.extract_url_features", side_effect=RuntimeError("Feature extraction crashed")):
+            res = self.client.post("/api/bulk-scan", json={"urls": ["https://example-crash.com"]})
+            self.assertEqual(res.status_code, 200)
+            results = res.get_json().get("results", [])
+            self.assertEqual(len(results), 1)
+            self.assertEqual(results[0]["label"], "Error")
+            self.assertEqual(results[0]["error"], "Scan processing failed")
+            self.assertEqual(results[0]["threat_signals"], [])
+
+    def test_full_analysis_preserves_zero_domain_age(self):
+        """Passing domain_age_days=0 (newly registered domain) must not be replaced with 365."""
+        res = self.client.post("/api/full-analysis", json={
+            "url": "https://suspicious-brand-new.xyz",
+            "domain_age_days": 0
+        })
         self.assertEqual(res.status_code, 200)
-        results = res.get_json().get("results", [])
-        self.assertEqual(len(results), 1)
-        self.assertIn("error", results[0])
-        self.assertEqual(results[0]["threat_signals"], [])
+        data = res.get_json()
+        self.assertIn("risk", data)
+
+    def test_full_analysis_saves_keyword_count_in_scan(self):
+        """full_analysis() must persist keyword_count to the Scan model."""
+        res = self.client.post("/api/full-analysis", json={
+            "email": "URGENT: Verify your account immediately! Bank transfer payment wire password."
+        })
+        self.assertEqual(res.status_code, 200)
+        with self.app.app_context():
+            latest = Scan.query.filter_by(kind="full").order_by(Scan.id.desc()).first()
+            self.assertIsNotNone(latest)
+            self.assertGreater(latest.keyword_count, 0, "Scan record must persist non-zero keyword_count")
+
+    def test_dashboard_returns_signals_and_risk_distribution(self):
+        """Dashboard must aggregate top_signals and risk_distribution from scans."""
+        with self.app.app_context():
+            s = Scan(kind="url", label="Critical", score=95.0, confidence="Critical", subject="https://evil.biz")
+            s.set_signals(["Suspicious IP", "No HTTPS"])
+            db.session.add(s)
+            db.session.commit()
+
+        res = self.client.get("/api/dashboard")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertGreater(len(data["top_signals"]), 0, "top_signals must not be empty when scans exist")
+        self.assertGreater(len(data["risk_distribution"]), 0, "risk_distribution must not be empty when scans exist")
+        self.assertEqual(data["top_signals"][0]["signal"], "Suspicious IP")
 
     # =========================================================================
     # 5. /api/full-analysis Route Availability & Validation

@@ -348,11 +348,15 @@ def full_analysis():
         return jsonify({"error": "At least one of 'url' or 'email' must be provided"}), 400
 
     try:
-        raw_age = float(data.get("domain_age_days", 365) or 365)
-        if math.isnan(raw_age) or math.isinf(raw_age):
+        val = data.get("domain_age_days")
+        if val is None or val == "":
             domain_age = 365
         else:
-            domain_age = max(1, min(100000, int(raw_age)))
+            raw_age = float(val)
+            if math.isnan(raw_age) or math.isinf(raw_age):
+                domain_age = 365
+            else:
+                domain_age = max(0, min(100000, int(raw_age)))
     except (ValueError, TypeError, OverflowError):
         domain_age = 365
     attachment = int(bool(data.get("has_attachment", False)))
@@ -426,6 +430,7 @@ def full_analysis():
             "probability": round(score / 100.0, 4),
             "confidence": level,
             "subject": "Combined URL + email analysis",
+            "keyword_count": keywords,
             "signals": [name for name, value in (("url", url_prob), ("email", email_prob), ("keywords", keywords)) if value],
         })
 
@@ -573,6 +578,21 @@ def dashboard():
     recent_feedback = ExtensionFeedback.query.order_by(ExtensionFeedback.id.desc()).limit(5).all()
     phishing_events = Scan.query.filter(Scan.label.in_(['Phishing', 'Spam/Scam'])).count()
 
+    # Aggregate top signals and risk distribution from recent scans
+    signal_counts = {}
+    risk_counts = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0}
+    for s in recent_scans:
+        for sig in s.get_signals():
+            sig_name = str(sig).strip()
+            if sig_name:
+                signal_counts[sig_name] = signal_counts.get(sig_name, 0) + 1
+        lbl = s.label or s.confidence
+        if lbl in risk_counts:
+            risk_counts[lbl] += 1
+
+    top_signals = [{"signal": k, "count": v} for k, v in sorted(signal_counts.items(), key=lambda x: x[1], reverse=True)[:5]]
+    risk_distribution = [{"level": k, "count": v} for k, v in risk_counts.items() if v > 0]
+
     return jsonify({
         "stats": {
             "urls_scanned": stat.urls_scanned,
@@ -589,8 +609,8 @@ def dashboard():
         } for s in recent_scans],
         "recent_alerts": [{"id": a.id, "details": a.get_details(), "timestamp": a.timestamp} for a in recent_alerts],
         "recent_feedback": [{"id": f.id, "details": f.get_details(), "timestamp": f.timestamp} for f in recent_feedback],
-        "top_signals": [],
-        "risk_distribution": []
+        "top_signals": top_signals,
+        "risk_distribution": risk_distribution
     })
 
 @api_bp.route("/api/stats")
