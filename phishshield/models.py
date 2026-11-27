@@ -1,0 +1,39 @@
+import json
+from datetime import datetime, timezone
+from flask_sqlalchemy import SQLAlchemy
+
+db = SQLAlchemy()
+
+class GlobalStat(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    urls_scanned = db.Column(db.Integer, default=0)
+    emails_analyzed = db.Column(db.Integer, default=0)
+    threats_detected = db.Column(db.Integer, default=0)
+
+class Scan(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(50))  # 'url', 'email', 'risk', 'full', 'bulk'
+    timestamp = db.Column(db.String(100), default=lambda: datetime.now(timezone.utc).isoformat())
+    label = db.Column(db.String(50))
+    score = db.Column(db.Float)
+    probability = db.Column(db.Float, nullable=True)
+    confidence = db.Column(db.String(50), nullable=True)
+    subject = db.Column(db.Text, nullable=True)
+    signals = db.Column(db.Text, nullable=True)  # Store as JSON string
+    keyword_count = db.Column(db.Integer, nullable=True)
+
+    def set_signals(self, signals_list):
+        self.signals = json.dumps(signals_list)
+
+    def get_signals(self):
+        return json.loads(self.signals) if self.signals else []
+
+class ExtensionAlert(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.String(100), default=lambda: datetime.now(timezone.utc).isoformat())
+    details = db.Column(db.Text)  # JSON string
+
+class ExtensionFeedback(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.String(100), default=lambda: datetime.now(timezone.utc).isoformat())
+    details = db.Column(db.Text)  # JSON string

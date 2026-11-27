@@ -1,0 +1,47 @@
+<section id="tab-url" class="tab-content scroll-section">
+      <div class="section-label"><span class="section-num">01</span> URL Checker</div>
+      <div class="card glass">
+        <div class="card-header-row">
+          <div>
+            <h2>URL Phishing Checker</h2>
+            <p class="card-desc">Paste any URL to detect phishing using 17 structural features.</p>
+          </div>
+          <span class="shortcut-hint">Enter  to scan</span>
+        </div>
+        <div class="input-group">
+          <div class="input-wrap url-input-wrap">
+            <input type="text" id="url-input" placeholder="https://example.com/login?redirect=..." autocomplete="off"/>
+            <div class="scan-laser" id="url-laser"></div>
+            <button class="clear-btn" onclick="clearInput('url-input','url-result','url-skeleton')" title="Clear">&#10005;</button>
+          </div>
+          <button class="btn-primary ripple-btn" id="url-analyze-btn" onclick="checkURL()">
+            <span class="btn-inner">Analyze URL</span>
+          </button>
+        </div>
+        <div class="quick-tests">
+          <span class="label-sm">Quick test:</span>
+          <button class="chip" onclick="setURL('https://google.com')">google.com</button>
+          <button class="chip" onclick="setURL('http://192.168.1.1/~login/verify-account@paypal.com/update')">Phishing sample</button>
+          <button class="chip" onclick="setURL('http://paypa1.com.evil-domain.xyz/secure/login?user=update&amp;verify=true')">Spoofed domain</button>
+        </div>
+        <div id="url-scan-anim" class="scan-anim hidden">
+          <div class="scan-circle">
+            <div class="scan-ring"></div>
+            <div class="scan-ring scan-ring-2"></div>
+            <div class="scan-dot"></div>
+          </div>
+          <div class="scan-text">
+            <span class="scan-label" id="scan-label-text">AI models analyzing structural signals...</span>
+            <div class="scan-dots"><span></span><span></span><span></span></div>
+          </div>
+        </div>
+        <div id="url-skeleton" class="skeleton-wrap hidden"></div>
+        <div id="url-result" class="result-panel hidden"></div>
+        <div id="url-history" class="scan-history hidden">
+          <div class="sh-title">Recent Scans</div>
+          <div id="url-history-list" class="sh-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EMAIL ANALYZER -->

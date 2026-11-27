@@ -1,0 +1,29 @@
+<section id="tab-bulk" class="tab-content scroll-section">
+      <div class="section-label"><span class="section-num">06</span> Bulk Scanner</div>
+      <div class="card glass">
+        <div class="card-header-row">
+          <div>
+            <h2>Bulk URL Scanner</h2>
+            <p class="card-desc">Paste up to 50 URLs — one per line — for simultaneous AI + rule-engine analysis.</p>
+          </div>
+          <span class="shortcut-hint">Max 50 URLs</span>
+        </div>
+        <div class="input-wrap textarea-wrap">
+          <textarea id="bulk-input" rows="9" placeholder="https://google.com&#10;https://paypal-verify.suspicious.xyz/login&#10;http://192.168.1.1/~admin@paypal.com&#10;https://github.com&#10;http://bit.ly/3xFakeLink&#10;https://amazon.com"></textarea>
+        </div>
+        <div class="btn-row" style="margin-top:12px;">
+          <button class="btn-primary ripple-btn" onclick="bulkScan()"><span class="btn-inner">⚡ Scan All URLs</span></button>
+          <button class="btn-ghost" id="bulk-csv-btn" onclick="exportBulkCSV()" style="display:none;">⬇ Export CSV</button>
+        </div>
+        <div id="bulk-progress" class="bulk-progress hidden">
+          <div class="bp-bar-wrap"><div class="bp-bar" id="bp-bar"></div></div>
+          <span id="bp-label">Scanning...</span>
+        </div>
+        <div id="bulk-result" class="hidden" style="margin-top:16px;"></div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<!-- FOOTER -->
