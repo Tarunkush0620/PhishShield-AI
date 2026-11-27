@@ -260,7 +260,7 @@ class TestAPIInputValidation(unittest.TestCase):
             self.assertEqual(results[0]["threat_signals"], [])
 
     def test_full_analysis_preserves_zero_domain_age(self):
-        """Passing domain_age_days=0 (newly registered domain) must not be replaced with 365."""
+        """Passing domain_age_days=0 (newly registered domain) must be preserved and not replaced with 365."""
         res = self.client.post("/api/full-analysis", json={
             "url": "https://suspicious-brand-new.xyz",
             "domain_age_days": 0
@@ -268,6 +268,29 @@ class TestAPIInputValidation(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         data = res.get_json()
         self.assertIn("risk", data)
+        self.assertIn("inputs", data)
+        self.assertEqual(data["inputs"]["domain_age_days"], 0, "domain_age_days=0 must be preserved and not replaced with 365")
+
+    def test_risk_score_auto_mode_uses_true_classifier_probabilities(self):
+        """
+        Automatic scoring after a combined scan must preserve distinct URL and email
+        probabilities rather than assigning the composite risk score to both.
+        """
+        with self.app.app_context():
+            s = Scan(kind="full", label="High", score=75.0, confidence="High", subject="Combined test")
+            s.set_signals({
+                "threat_signals": ["Suspicious keyword"],
+                "url_prob": 0.92,
+                "email_prob": 0.28
+            })
+            db.session.add(s)
+            db.session.commit()
+
+        res = self.client.post("/api/risk-score", json={})
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["inputs"]["url_model_prob"], 0.92, "Auto risk score must consume true URL probability from full scan")
+        self.assertEqual(data["inputs"]["email_model_prob"], 0.28, "Auto risk score must consume true Email probability from full scan")
 
     def test_full_analysis_saves_keyword_count_in_scan(self):
         """full_analysis() must persist keyword_count to the Scan model."""

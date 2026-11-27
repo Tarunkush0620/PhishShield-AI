@@ -13,7 +13,7 @@
 | 3 | Remove `details: str(e)` in 500 Responses | Reviewer 1 & 3 | `phishshield/routes.py` | Prevents CWE-209 internal traceback and path disclosure. |
 | 4 | Add `db.session.rollback()` in Handlers | Reviewer 3 (Arch) | `phishshield/routes.py` | Prevents database transaction poisoning on mid-request failures. |
 | 5 | Exclude `bulk` Scans from Auto Risk Query | Reviewer 2 & 3 | `phishshield/routes.py` | Preserves URL risk component integrity in composite model. |
-| 6 | Record Probability in `full_analysis` | Reviewer 2 (QA) | `phishshield/routes.py` | Enables combined scans to feed auto risk scoring accurately. |
+| 6 | Record Distinct Classifier Probabilities in `full_analysis` | Reviewer 2 (QA) & Proofline | `phishshield/routes.py` | Preserves distinct `url_prob` and `email_prob` in scan metadata so automatic scoring evaluates true component probabilities without conflating composite score with individual classifier outputs. |
 | 7 | Store Valid JSON in Extension Alerts/Feedback | Reviewer 1 & 2 | `phishshield/routes.py` | Prevents JavaScript `JSON.parse` crashes on `/api/dashboard`. |
 | 8 | Validate Non-Empty Payload in Full Analysis | Reviewer 2 (QA) | `phishshield/routes.py` | Ensures clients provide at least one valid input before running models. |
 | 9 | Support `test_config` in `create_app` | Reviewer 3 (Arch) | `phishshield/__init__.py` | Guarantees hermetic in-memory test execution without disk collisions. |

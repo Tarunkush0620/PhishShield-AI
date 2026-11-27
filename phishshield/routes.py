@@ -254,28 +254,50 @@ def risk_score():
             mode = "manual"
             sources = {}
         else:
-            latest_url = Scan.query.filter(Scan.kind.in_(['url', 'full'])).order_by(Scan.id.desc()).first()
-            latest_email = Scan.query.filter(Scan.kind.in_(['email', 'full'])).order_by(Scan.id.desc()).first()
+            latest_url = Scan.query.filter_by(kind='url').order_by(Scan.id.desc()).first()
+            latest_email = Scan.query.filter_by(kind='email').order_by(Scan.id.desc()).first()
+            latest_full = Scan.query.filter_by(kind='full').order_by(Scan.id.desc()).first()
 
-            if not latest_url and not latest_email:
+            if not latest_url and not latest_email and not latest_full:
                 return jsonify({"error": "No scan history available. Run a URL or email scan first to generate an automatic risk score."}), 400
 
-            url_prob = latest_url.probability if (latest_url and latest_url.probability is not None) else 0.0
-            email_prob = latest_email.probability if (latest_email and latest_email.probability is not None) else 0.0
-            keywords = latest_email.keyword_count if (latest_email and latest_email.keyword_count is not None) else 0
+            url_prob = 0.0
+            email_prob = 0.0
+            keywords = 0
+
+            # Prioritize dedicated URL scan, or fall back to full scan's recorded url_prob
+            if latest_url and latest_url.probability is not None:
+                url_prob = latest_url.probability
+            elif latest_full:
+                sigs = latest_full.get_raw_signals()
+                if "url_prob" in sigs:
+                    url_prob = sigs["url_prob"]
+
+            # Prioritize dedicated Email scan, or fall back to full scan's email_prob & keyword_count
+            if latest_email and latest_email.probability is not None:
+                email_prob = latest_email.probability
+                keywords = latest_email.keyword_count or 0
+            elif latest_full:
+                sigs = latest_full.get_raw_signals()
+                if "email_prob" in sigs:
+                    email_prob = sigs["email_prob"]
+                if latest_full.keyword_count is not None:
+                    keywords = latest_full.keyword_count
 
             domain_age = 365
-            if latest_url and latest_url.label in {"Phishing", "Critical", "High"}:
+            if (latest_url and latest_url.label in {"Phishing", "Critical", "High"}) or \
+               (latest_full and latest_full.label in {"Critical", "High"}):
                 domain_age = 14
 
             attachment = 0
-            if latest_email and (keywords >= 3 or latest_email.label in {"Spam/Scam", "Phishing"}):
+            if (latest_email and (keywords >= 3 or latest_email.label in {"Spam/Scam", "Phishing"})) or \
+               (latest_full and keywords >= 3):
                 attachment = 1
 
             url_prob   = _clean_prob(url_prob)
             email_prob = _clean_prob(email_prob)
             keywords   = _clean_int(keywords, min_val=0)
-            domain_age = _clean_int(domain_age, min_val=1, default=365)
+            domain_age = _clean_int(domain_age, min_val=0, default=365)
             mode = "auto"
             sources = {}
 
@@ -423,6 +445,7 @@ def full_analysis():
         )
         score = float(max(0.0, min(100.0, RISK_MODEL.predict(row)[0])))
         level, color = risk_level(score)
+        full_signals = [name for name, value in (("url", url_prob), ("email", email_prob), ("keywords", keywords)) if value]
         _record_scan({
             "kind": "full",
             "label": level,
@@ -431,7 +454,11 @@ def full_analysis():
             "confidence": level,
             "subject": "Combined URL + email analysis",
             "keyword_count": keywords,
-            "signals": [name for name, value in (("url", url_prob), ("email", email_prob), ("keywords", keywords)) if value],
+            "signals": {
+                "threat_signals": full_signals,
+                "url_prob": round(url_prob, 4),
+                "email_prob": round(email_prob, 4)
+            },
         })
 
         stat = get_global_stat()
@@ -449,6 +476,10 @@ def full_analysis():
             "score": round(score, 1),
             "level": level,
             "color": color,
+        }
+        result["inputs"] = {
+            "domain_age_days": domain_age,
+            "has_attachment": bool(attachment),
         }
     except Exception as e:
         result["risk"] = {"error": str(e)}

@@ -37,4 +37,4 @@
 - **Engineering Rationale for Rejection:**
   1. **Violates Project Scope & Constraints:** The assessment instructions explicitly prohibit rewriting the repository or replacing architecture. The objective is to demonstrate senior engineering judgment on the existing production codebase.
   2. **Technical Misconception Regarding CPU-Bound ML Workloads:** Machine learning inference (`scikit-learn`'s `predict_proba()` and `predict()`, as well as regex feature extraction) is **CPU-bound**, not I/O-bound. Running CPU-bound tasks inside a Python `asyncio` event loop blocks the event loop and degrades throughput unless offloaded to `ProcessPoolExecutor` or worker queues (Celery/RQ).
-  3. Under Gunicorn with multi-process workers (`gunicorn -w 4 app:app`), Flask processes concurrent requests across CPU cores with minimal overhead and proven enterprise stability.
+  3. Under Gunicorn with multi-process workers (such as `gunicorn --chdir phishshield -w 4 app:app` or `gunicorn -w 4 "phishshield.app:app"` as specified in the repository `Procfile`), Flask processes concurrent requests across CPU cores with minimal overhead and proven enterprise stability.

@@ -29,9 +29,21 @@ class Scan(db.Model):
         if not self.signals:
             return []
         try:
-            return json.loads(self.signals)
+            val = json.loads(self.signals)
+            if isinstance(val, dict) and "threat_signals" in val:
+                return val.get("threat_signals", [])
+            return val if isinstance(val, list) else []
         except (json.JSONDecodeError, TypeError, ValueError):
             return []
+
+    def get_raw_signals(self):
+        if not self.signals:
+            return {}
+        try:
+            val = json.loads(self.signals)
+            return val if isinstance(val, dict) else {"threat_signals": val}
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return {}
 
 class ExtensionAlert(db.Model):
     id = db.Column(db.Integer, primary_key=True)
