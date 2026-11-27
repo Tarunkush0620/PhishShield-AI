@@ -1,4 +1,4 @@
-﻿/* PhishShield AI — Frontend v3 (GSAP + AOS + Lottie Edition)
+/* PhishShield AI — Frontend v3 (GSAP + AOS + Lottie Edition)
     */
 
 //  AOS Init 
@@ -17,8 +17,8 @@ document.addEventListener("DOMContentLoaded", () => {
   fetchDashboard();
   setInterval(fetchStats, 10000);
   setInterval(fetchDashboard, 20000);
-  setInterval(fetchStats, 500); // fast poll first 3s
-  setTimeout(() => {}, 3000);
+  const fastPoll = setInterval(fetchStats, 500); // fast poll first 3s
+  setTimeout(() => clearInterval(fastPoll), 3000);
 });
 
 // 

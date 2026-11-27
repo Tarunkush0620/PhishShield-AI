@@ -565,6 +565,7 @@ def extension_feedback():
 # 7. DASHBOARD & STATS
 # ─────────────────────────────────────────────────────────────────────────────
 @api_bp.route("/api/dashboard")
+@limiter.limit("120 per minute")
 def dashboard():
     stat = get_global_stat()
     recent_scans = Scan.query.order_by(Scan.id.desc()).limit(10).all()
@@ -593,6 +594,7 @@ def dashboard():
     })
 
 @api_bp.route("/api/stats")
+@limiter.limit("300 per minute")
 def get_stats():
     stat = get_global_stat()
     return jsonify({

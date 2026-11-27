@@ -35,9 +35,11 @@ def _fast_model_loader(filepath, *args, **kwargs):
         }
     return _orig_load(filepath, *args, **kwargs)
 
-with patch("joblib.load", side_effect=_fast_model_loader):
-    from phishshield import create_app, limiter
-    from phishshield.models import db, Scan
+_patcher = patch("joblib.load", side_effect=_fast_model_loader)
+_patcher.start()
+
+from phishshield import create_app, limiter
+from phishshield.models import db, Scan
 
 
 class TestAPIInputValidation(unittest.TestCase):
@@ -50,6 +52,10 @@ class TestAPIInputValidation(unittest.TestCase):
         })
         limiter.enabled = False
         cls.client = cls.app.test_client()
+
+    @classmethod
+    def tearDownClass(cls):
+        _patcher.stop()
 
     def setUp(self):
         with self.app.app_context():
