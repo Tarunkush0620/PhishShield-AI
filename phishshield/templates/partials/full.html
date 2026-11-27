@@ -1,0 +1,53 @@
+<section id="tab-full" class="tab-content scroll-section">
+      <div class="section-label"><span class="section-num">04</span> Full Analysis</div>
+      <div class="card glass">
+        <h2>Full Threat Analysis</h2>
+        <p class="card-desc">Provide URL + email text and let all three models run together for a complete threat report.</p>
+        <div class="form-group">
+          <label>URL <span class="hint">optional</span></label>
+          <div class="input-wrap">
+            <input type="text" id="fa-url" placeholder="https://suspicious-site.com/login"/>
+            <button class="clear-btn" onclick="clearInput('fa-url',null,null)" title="Clear">&#10005;</button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:14px;">
+          <label>Email Body <span class="hint">optional</span></label>
+          <div class="input-wrap textarea-wrap">
+            <textarea id="fa-email" rows="5" placeholder="Paste email body here"></textarea>
+            <button class="clear-btn textarea-clear" onclick="clearInput('fa-email',null,null)" title="Clear">&#10005;</button>
+          </div>
+        </div>
+        <div class="form-grid two-col" style="margin-top:14px;">
+          <div class="form-group">
+            <label>Domain Age <span class="hint">days</span></label>
+            <input type="number" id="fa-domain-age" min="1" value="30"/>
+          </div>
+          <div class="form-group checkbox-group">
+            <label><input type="checkbox" id="fa-attachment"/> Has Attachment</label>
+          </div>
+        </div>
+        <button class="btn-primary ripple-btn full-width" onclick="fullAnalysis()"><span class="btn-inner"> Run Full Analysis</span></button>
+        <div id="pipeline-anim" class="pipeline-anim hidden">
+          <div class="pipe-step" id="pipe-step-1">
+            <div class="pipe-icon"></div>
+            <div class="pipe-label">URL Model</div>
+            <div class="pipe-status" id="pipe-st-1">Scanning...</div>
+          </div>
+          <div class="pipe-connector"><div class="pipe-flow" id="pipe-flow-1"></div></div>
+          <div class="pipe-step" id="pipe-step-2">
+            <div class="pipe-icon"></div>
+            <div class="pipe-label">Email Model</div>
+            <div class="pipe-status" id="pipe-st-2">Waiting...</div>
+          </div>
+          <div class="pipe-connector"><div class="pipe-flow" id="pipe-flow-2"></div></div>
+          <div class="pipe-step" id="pipe-step-3">
+            <div class="pipe-icon"></div>
+            <div class="pipe-label">Risk Engine</div>
+            <div class="pipe-status" id="pipe-st-3">Waiting...</div>
+          </div>
+        </div>
+        <div id="full-result" class="result-panel hidden"></div>
+      </div>
+    </section>
+
+    <!-- INTELLIGENCE DASHBOARD -->

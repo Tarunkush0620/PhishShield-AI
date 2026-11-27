@@ -1,0 +1,56 @@
+<section id="tab-dashboard" class="tab-content scroll-section">
+      <div class="section-label"><span class="section-num">05</span> Intelligence Dashboard</div>
+      <div class="card glass dashboard-panel" id="dashboard-panel">
+        <div class="card-header-row">
+          <div>
+            <h2>Threat Intelligence Console</h2>
+            <p class="card-desc">Monitor recent scans, high-signal indicators, and extension activity from one place.</p>
+          </div>
+          <button class="btn-ghost" onclick="fetchDashboard()">Refresh live data</button>
+        </div>
+
+        <div class="dashboard-kpis">
+          <div class="dash-kpi">
+            <span class="dash-kpi-label">Recent scans</span>
+            <strong id="dash-recent-scans">0</strong>
+          </div>
+          <div class="dash-kpi">
+            <span class="dash-kpi-label">Phishing events</span>
+            <strong id="dash-phish-events">0</strong>
+          </div>
+          <div class="dash-kpi">
+            <span class="dash-kpi-label">Extension alerts</span>
+            <strong id="dash-extension-alerts">0</strong>
+          </div>
+          <div class="dash-kpi">
+            <span class="dash-kpi-label">Feedback items</span>
+            <strong id="dash-extension-feedback">0</strong>
+          </div>
+        </div>
+
+        <div class="dashboard-grid">
+          <div class="dashboard-card">
+            <div class="dashboard-card-title">Top signals</div>
+            <div id="dash-signals" class="dashboard-list"></div>
+          </div>
+          <div class="dashboard-card">
+            <div class="dashboard-card-title">Risk distribution</div>
+            <div id="dash-risk" class="dashboard-list"></div>
+          </div>
+          <div class="dashboard-card dashboard-wide">
+            <div class="dashboard-card-title">Recent scans</div>
+            <div id="dash-scans" class="dashboard-feed"></div>
+          </div>
+          <div class="dashboard-card">
+            <div class="dashboard-card-title">Extension alerts</div>
+            <div id="dash-alerts" class="dashboard-list"></div>
+          </div>
+          <div class="dashboard-card">
+            <div class="dashboard-card-title">User feedback</div>
+            <div id="dash-feedback" class="dashboard-list"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BULK SCANNER -->

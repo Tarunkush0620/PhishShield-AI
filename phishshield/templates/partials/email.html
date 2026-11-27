@@ -1,0 +1,33 @@
+<section id="tab-email" class="tab-content scroll-section">
+      <div class="section-label"><span class="section-num">02</span> Email Analyzer</div>
+      <div class="card glass">
+        <div class="card-header-row">
+          <div>
+            <h2>Email Scam Analyzer</h2>
+            <p class="card-desc">Paste email body text to detect scam / phishing content using NLP + TF-IDF.</p>
+          </div>
+          <span class="shortcut-hint">Ctrl+Enter to scan</span>
+        </div>
+        <div id="email-brain-anim" class="brain-anim hidden">
+          <div id="lottie-brain" class="lottie-container"></div>
+          <div class="brain-label">AI Neural Engine Processing...</div>
+        </div>
+        <div class="input-wrap textarea-wrap" style="margin-bottom:14px;">
+          <textarea id="email-input" rows="7" placeholder="Paste email body text here&#10;&#10;Example: Congratulations! You have been selected as our lucky winner"></textarea>
+          <button class="clear-btn textarea-clear" onclick="clearInput('email-input','email-result','email-skeleton')" title="Clear">&#10005;</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn-primary ripple-btn" onclick="checkEmail()"><span class="btn-inner">Analyze Email</span></button>
+          <button class="btn-ghost" onclick="loadSampleEmail('spam')">Load Spam Sample</button>
+          <button class="btn-ghost" onclick="loadSampleEmail('ham')">Load Ham Sample</button>
+        </div>
+        <div id="email-skeleton" class="skeleton-wrap hidden"></div>
+        <div id="email-result" class="result-panel hidden"></div>
+        <div id="email-history" class="scan-history hidden">
+          <div class="sh-title">Recent Scans</div>
+          <div id="email-history-list" class="sh-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RISK SCORE -->

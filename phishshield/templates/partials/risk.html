@@ -1,0 +1,34 @@
+<section id="tab-risk" class="tab-content scroll-section">
+      <div class="section-label"><span class="section-num">03</span> Risk Score</div>
+      <div class="card glass">
+        <h2>Composite Risk Score</h2>
+        <p class="card-desc">This score is computed automatically from the latest URL, email, or full scan. No manual input is required.</p>
+        <div class="risk-auto-strip">
+          <div>
+            <div class="risk-auto-title">Auto-linked risk engine</div>
+            <div class="risk-auto-sub">Latest scans are blended into one composite score and updated live.</div>
+          </div>
+          <button class="btn-ghost" onclick="refreshAutoRisk()">Refresh latest risk</button>
+        </div>
+        <div class="risk-source-grid">
+          <div class="risk-source-card">
+            <span>Latest URL</span>
+            <strong id="risk-src-url">Waiting for scan</strong>
+          </div>
+          <div class="risk-source-card">
+            <span>Latest Email</span>
+            <strong id="risk-src-email">Waiting for scan</strong>
+          </div>
+          <div class="risk-source-card">
+            <span>Latest Composite</span>
+            <strong id="risk-src-full">Waiting for scan</strong>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn-primary ripple-btn" onclick="refreshAutoRisk()"><span class="btn-inner">Compute Auto Risk Score</span></button>
+        </div>
+        <div id="risk-result" class="result-panel hidden"></div>
+      </div>
+    </section>
+
+    <!-- FULL ANALYSIS -->

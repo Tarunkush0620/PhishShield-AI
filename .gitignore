@@ -14,8 +14,13 @@ build/
 venv/
 env/
 
-# Jupyter
-.ipynb_checkpoints/
+# Backups
+phishshield/app_backup.py
+*.bak
+
+# SQLite / local instance
+instance/
+*.db
 
 # Large model files (>100 MB — excluded from git; reproduced by running training/train_url_model.py)
 training/url_model.pkl
