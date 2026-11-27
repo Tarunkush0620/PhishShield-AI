@@ -8,10 +8,13 @@ limiter = Limiter(
     default_limits=["200 per day", "50 per hour"]
 )
 
-def create_app():
+def create_app(test_config=None):
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///phishshield.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    if test_config:
+        app.config.update(test_config)
 
     db.init_app(app)
     limiter.init_app(app)

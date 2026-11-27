@@ -43,9 +43,11 @@ with patch("joblib.load", side_effect=_fast_model_loader):
 class TestAPIInputValidation(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.app = create_app()
-        cls.app.config["TESTING"] = True
-        cls.app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
+        cls.app = create_app({
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+            "RATELIMIT_ENABLED": False
+        })
         limiter.enabled = False
         cls.client = cls.app.test_client()
 
@@ -71,6 +73,15 @@ class TestAPIInputValidation(unittest.TestCase):
         self.assertIn("label", data)
         self.assertIn("confidence", data)
         self.assertIn("threat_signals", data)
+
+    def test_check_url_case_insensitive_scheme(self):
+        """URL with uppercase scheme like 'HTTPS://' should not be prepended with 'http://'."""
+        for test_url in ["HTTPS://google.com", "Http://example.com/login"]:
+            res = self.client.post("/api/check-url", json={"url": test_url})
+            self.assertEqual(res.status_code, 200)
+            data = res.get_json()
+            self.assertEqual(data["url"], test_url, f"Scheme in {test_url} should not be duplicated")
+            self.assertFalse(data["url"].startswith("http://HTTPS://"))
 
     def test_check_url_non_dict_payload_returns_400(self):
         """Sending a JSON list or string instead of a dict should return 400 Bad Request."""
@@ -276,6 +287,97 @@ class TestAPIInputValidation(unittest.TestCase):
         self.assertEqual(res_ext.status_code, 200)
         ext_reply = res_ext.get_json().get("response", "")
         self.assertIn("phishing", ext_reply.lower(), "Chrome Extension query using 'question' must be parsed")
+
+    def test_chat_handles_whitespace_message_with_valid_question(self):
+        """When 'message' is whitespace-only, fallback to valid 'question' key."""
+        res = self.client.post("/api/chat", json={"message": "   \t  ", "question": "What is phishing?"})
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertIn("response", data)
+
+    # =========================================================================
+    # 7. Reviewer Verified Edge Cases & Regression Protections
+    # =========================================================================
+
+    def test_risk_score_overflow_error_with_string_infinity(self):
+        """
+        Reviewer Finding Regression Test:
+        Passing string 'Infinity' or 'inf' for integer fields (e.g. domain_age_days)
+        must not raise uncaught OverflowError: cannot convert float infinity to integer.
+        """
+        res = self.client.post("/api/risk-score", json={
+            "url_model_prob": 0.5,
+            "email_model_prob": 0.5,
+            "num_suspicious_keywords": "Infinity",
+            "domain_age_days": "inf",
+            "has_attachment": False
+        })
+        self.assertEqual(res.status_code, 200, "String 'Infinity' must be safely handled without OverflowError 500")
+        data = res.get_json()
+        self.assertIn("score", data)
+        # Check inputs sanitized to default bounds
+        self.assertEqual(data["inputs"]["num_suspicious_keywords"], 0)
+        self.assertEqual(data["inputs"]["domain_age_days"], 365)
+
+    def test_full_analysis_requires_at_least_one_input(self):
+        """Endpoint /api/full-analysis must require at least one of 'url' or 'email'."""
+        for payload in [{}, {"url": "", "email": ""}, {"url": "   ", "email": "   "}]:
+            res = self.client.post("/api/full-analysis", json=payload)
+            self.assertEqual(res.status_code, 400, "Full analysis with neither url nor email must return 400")
+            data = res.get_json()
+            self.assertIn("error", data)
+
+    def test_risk_score_auto_mode_ignores_bulk_scan_without_prob(self):
+        """
+        Auto risk score must not pull probability-less 'bulk' scan records.
+        """
+        with self.app.app_context():
+            # Add a bulk scan (no probability)
+            bulk_scan = Scan(kind="bulk", label="Phishing", score=80.0, probability=None)
+            db.session.add(bulk_scan)
+            db.session.commit()
+
+        # Without an individual url or full scan, auto mode should reject since bulk has no valid probability
+        res = self.client.post("/api/risk-score", json={})
+        self.assertEqual(res.status_code, 400, "Auto mode must not evaluate bulk scan as latest URL scan")
+
+        with self.app.app_context():
+            # Add a valid URL scan
+            url_scan = Scan(kind="url", label="Phishing", score=90.0, probability=0.90)
+            db.session.add(url_scan)
+            db.session.commit()
+
+        res2 = self.client.post("/api/risk-score", json={})
+        self.assertEqual(res2.status_code, 200, "Auto mode succeeds with valid url scan")
+        data2 = res2.get_json()
+        self.assertEqual(data2["inputs"]["url_model_prob"], 0.90)
+
+    def test_extension_alert_and_feedback_stored_as_valid_json(self):
+        """Extension alert and feedback endpoints must store valid JSON parseable by dashboard."""
+        alert_payload = {"url": "https://malicious-test.biz", "action": "blocked"}
+        res_a = self.client.post("/api/extension-alert", json=alert_payload)
+        self.assertEqual(res_a.status_code, 200)
+
+        feedback_payload = {"url": "https://example.com", "rating": "false_positive"}
+        res_f = self.client.post("/api/extension-feedback", json=feedback_payload)
+        self.assertEqual(res_f.status_code, 200)
+
+        # Query dashboard and ensure details are returned as structured JSON dicts
+        res_d = self.client.get("/api/dashboard")
+        self.assertEqual(res_d.status_code, 200)
+        dash_data = res_d.get_json()
+        self.assertGreater(len(dash_data["recent_alerts"]), 0)
+        self.assertEqual(dash_data["recent_alerts"][0]["details"], alert_payload)
+        self.assertEqual(dash_data["recent_feedback"][0]["details"], feedback_payload)
+
+    def test_stats_and_dashboard_counts(self):
+        """Global stats endpoint returns all tracked metrics cleanly."""
+        res = self.client.get("/api/stats")
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertIn("urls_scanned", data)
+        self.assertIn("emails_analyzed", data)
+        self.assertIn("threats_detected", data)
 
 
 if __name__ == "__main__":

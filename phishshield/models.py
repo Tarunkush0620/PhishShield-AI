@@ -26,14 +26,35 @@ class Scan(db.Model):
         self.signals = json.dumps(signals_list)
 
     def get_signals(self):
-        return json.loads(self.signals) if self.signals else []
+        if not self.signals:
+            return []
+        try:
+            return json.loads(self.signals)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return []
 
 class ExtensionAlert(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.String(100), default=lambda: datetime.now(timezone.utc).isoformat())
     details = db.Column(db.Text)  # JSON string
 
+    def get_details(self):
+        if not self.details:
+            return {}
+        try:
+            return json.loads(self.details)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return {"raw": self.details}
+
 class ExtensionFeedback(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.String(100), default=lambda: datetime.now(timezone.utc).isoformat())
     details = db.Column(db.Text)  # JSON string
+
+    def get_details(self):
+        if not self.details:
+            return {}
+        try:
+            return json.loads(self.details)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return {"raw": self.details}

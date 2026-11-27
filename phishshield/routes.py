@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify, render_template
+import json
 import math
 import pandas as pd
 from datetime import datetime, timezone
@@ -76,7 +77,8 @@ def check_url():
     if not url:
         return jsonify({"error": "No URL provided"}), 400
 
-    if not url.startswith(("http://", "https://")):
+    url_lower = url.lower()
+    if not (url_lower.startswith("http://") or url_lower.startswith("https://")):
         url = "http://" + url
 
     try:
@@ -132,8 +134,9 @@ def check_url():
             "url_length"      : int(feats["URLLength"].iloc[0]),
             "threat_signals"  : threat_signals,
         })
-    except Exception as e:
-        return jsonify({"error": "Failed to analyze URL", "details": str(e)}), 500
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "Failed to analyze URL"}), 500
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. EMAIL CHECK
@@ -207,8 +210,9 @@ def check_email():
             "flagged_tokens"  : scam_tokens_found,
             "word_count"      : len(email_text.split()),
         })
-    except Exception as e:
-        return jsonify({"error": "Failed to analyze email text", "details": str(e)}), 500
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "Failed to analyze email text"}), 500
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 3. RISK SCORE
@@ -226,16 +230,17 @@ def risk_score():
             if math.isnan(f) or math.isinf(f):
                 return default
             return max(0.0, min(1.0, f))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return default
 
     def _clean_int(val, min_val=0, max_val=100000, default=0):
         try:
-            if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+            f = float(val)
+            if math.isnan(f) or math.isinf(f):
                 return default
-            i = int(float(val))
+            i = int(f)
             return max(min_val, min(max_val, i))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
             return default
 
     try:
@@ -249,7 +254,7 @@ def risk_score():
             mode = "manual"
             sources = {}
         else:
-            latest_url = Scan.query.filter(Scan.kind.in_(['url', 'full', 'bulk'])).order_by(Scan.id.desc()).first()
+            latest_url = Scan.query.filter(Scan.kind.in_(['url', 'full'])).order_by(Scan.id.desc()).first()
             latest_email = Scan.query.filter(Scan.kind.in_(['email', 'full'])).order_by(Scan.id.desc()).first()
 
             if not latest_url and not latest_email:
@@ -323,8 +328,9 @@ def risk_score():
             },
             "recommendations": recommendations,
         })
-    except Exception as e:
-        return jsonify({"error": "Failed to compute risk score", "details": str(e)}), 500
+    except Exception:
+        db.session.rollback()
+        return jsonify({"error": "Failed to compute risk score"}), 500
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. FULL ANALYSIS
@@ -338,9 +344,16 @@ def full_analysis():
 
     url_text   = str(data.get("url", "") or "").strip()
     email_text = str(data.get("email", "") or "").strip()
+    if not url_text and not email_text:
+        return jsonify({"error": "At least one of 'url' or 'email' must be provided"}), 400
+
     try:
-        domain_age = max(1, int(float(data.get("domain_age_days", 365) or 365)))
-    except (ValueError, TypeError):
+        raw_age = float(data.get("domain_age_days", 365) or 365)
+        if math.isnan(raw_age) or math.isinf(raw_age):
+            domain_age = 365
+        else:
+            domain_age = max(1, min(100000, int(raw_age)))
+    except (ValueError, TypeError, OverflowError):
         domain_age = 365
     attachment = int(bool(data.get("has_attachment", False)))
 
@@ -355,7 +368,8 @@ def full_analysis():
     keywords   = 0
 
     if url_text:
-        if not url_text.startswith(("http://", "https://")):
+        url_lower = url_text.lower()
+        if not (url_lower.startswith("http://") or url_lower.startswith("https://")):
             url_text = "http://" + url_text
         try:
             feats  = extract_url_features(url_text)
@@ -409,10 +423,23 @@ def full_analysis():
             "kind": "full",
             "label": level,
             "score": round(score, 1),
+            "probability": round(score / 100.0, 4),
             "confidence": level,
             "subject": "Combined URL + email analysis",
             "signals": [name for name, value in (("url", url_prob), ("email", email_prob), ("keywords", keywords)) if value],
         })
+
+        stat = get_global_stat()
+        if url_text:
+            stat.urls_scanned += 1
+        if email_text:
+            stat.emails_analyzed += 1
+        if (result["url_analysis"] and result["url_analysis"].get("prediction") == 1) or \
+           (result["email_analysis"] and result["email_analysis"].get("prediction") == 1) or \
+           (score >= 60.0):
+            stat.threats_detected += 1
+        db.session.commit()
+
         result["risk"] = {
             "score": round(score, 1),
             "level": level,
@@ -459,7 +486,8 @@ def bulk_scan():
             continue
 
         raw_url = raw_item.strip()
-        url = raw_url if raw_url.startswith(("http://", "https://")) else "http://" + raw_url
+        url_lower = raw_url.lower()
+        url = raw_url if (url_lower.startswith("http://") or url_lower.startswith("https://")) else "http://" + raw_url
         try:
             feats = extract_url_features(url)
             raw_prob = float(URL_MODEL.predict_proba(feats)[0][1]) if URL_MODEL is not None else 0.5
@@ -516,7 +544,7 @@ def extension_alert():
     if err:
         return err
 
-    alert = ExtensionAlert(details=str(data))
+    alert = ExtensionAlert(details=json.dumps(data))
     db.session.add(alert)
     db.session.commit()
     return jsonify({"ok": True, "id": alert.id, "total": ExtensionAlert.query.count()})
@@ -528,7 +556,7 @@ def extension_feedback():
     if err:
         return err
 
-    feedback = ExtensionFeedback(details=str(data))
+    feedback = ExtensionFeedback(details=json.dumps(data))
     db.session.add(feedback)
     db.session.commit()
     return jsonify({"ok": True, "id": feedback.id, "total": ExtensionFeedback.query.count()})
@@ -558,8 +586,8 @@ def dashboard():
             "id": s.id, "kind": s.kind, "label": s.label, "score": s.score, 
             "confidence": s.confidence, "subject": s.subject, "signals": s.get_signals(), "timestamp": s.timestamp
         } for s in recent_scans],
-        "recent_alerts": [{"id": a.id, "details": a.details, "timestamp": a.timestamp} for a in recent_alerts],
-        "recent_feedback": [{"id": f.id, "details": f.details, "timestamp": f.timestamp} for f in recent_feedback],
+        "recent_alerts": [{"id": a.id, "details": a.get_details(), "timestamp": a.timestamp} for a in recent_alerts],
+        "recent_feedback": [{"id": f.id, "details": f.get_details(), "timestamp": f.timestamp} for f in recent_feedback],
         "top_signals": [],
         "risk_distribution": []
     })
@@ -605,12 +633,16 @@ def ai_chat():
         return err
 
     # Harmonize both 'message' (Web UI) and 'question' (Chrome Extension popup)
-    raw_query = data.get("message") or data.get("question") or ""
-    if not isinstance(raw_query, str):
-        return jsonify({"error": "Message must be a string"}), 400
+    msg = data.get("message")
+    q = data.get("question")
+    raw_query = ""
+    if isinstance(msg, str) and msg.strip():
+        raw_query = msg.strip()
+    elif isinstance(q, str) and q.strip():
+        raw_query = q.strip()
 
-    question = raw_query.strip()[:500]
-    if not question:
+    if not raw_query:
         return jsonify({"error": "No question or message provided"}), 400
 
+    question = raw_query[:500]
     return jsonify({"response": _get_chat_response(question)})
